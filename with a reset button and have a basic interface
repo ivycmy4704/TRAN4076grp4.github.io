@@ -1,0 +1,291 @@
+# Step 1: Import necessary libraries
+import requests
+import time
+from PIL import Image
+from IPython.display import display, HTML
+from io import BytesIO
+import ipywidgets as widgets
+
+# Step 2: Define the prompt template for image and text
+prompt_template = """
+Create a social media post for a recipe generating website, promoting a specific dish.
+Product name: {product_name}
+Required dish: {dish}
+Key message: {key_message}
+Written tone: {tone} (e.g., craft the caption to feel calm, exciting, or friendly)
+Image color scheme: {color_scheme} (use this as the dominant palette in the image)
+
+Output:
+1. A short, engaging social media caption (50-100 words) that promotes the {dish} recipe, aligns with the {tone} tone, and incorporates the {key_message}.
+2. A detailed image prompt for AI image generators, describing a photorealistic, high-detail 1024x1024 image featuring the {dish} in a {tone} atmosphere, using a {color_scheme} color palette, with the {key_message} subtly integrated (e.g., text overlay or thematic elements).
+"""
+
+# Step 3: Function to generate the prompt and simulate LLM output
+def generate_recipe_content(product_name, dish, key_message, tone, color_scheme):
+    # Fill the prompt template
+    recipe_prompt = prompt_template.format(
+        product_name=product_name,
+        dish=dish,
+        key_message=key_message,
+        tone=tone,
+        color_scheme=color_scheme
+    )
+    # Simulate LLM response
+    caption = (
+        f"Whip up a delicious {dish} with {product_name}! {key_message} "
+        f"Follow our easy recipe to create a {tone} dining experience. "
+        f"Discover more at {product_name.lower()}.com! #Recipes #{dish.replace(' ', '')}"
+    )
+    image_prompt = (
+        f"A photorealistic 1024x1024 social media graphic featuring a beautifully plated {dish}, "
+        f"set in a {tone} atmosphere, with a {color_scheme} color palette dominating the scene. "
+        f"The {key_message} is subtly integrated via elegant text overlay or thematic elements, "
+        f"surrounded by fresh ingredients and a modern kitchen setting, high, detail, vibrant lighting."
+    )
+    return recipe_prompt, caption, image_prompt
+
+# Step 4: Function to display an image
+def display_image(source, source_type="url"):
+    try:
+        if source_type == "url":
+            response = requests.get(source)
+            response.raise_for_status()
+            img = Image.open(BytesIO(response.content))
+        else:  # local
+            img = Image.open(source)
+        
+        img = img.resize((512, 512))  # Resize for notebook
+        display(img)
+        return True
+    except Exception as e:
+        print(f"Error displaying image: {str(e)}")
+        return False
+
+# Step 5: Function to generate image using Pollinations
+def get_pollinations_image(image_prompt):
+    try:
+        gen_url = f"https://pollinations.ai/p/{image_prompt.replace(' ', '%20')}?width=1024&height=1024&seed=42"
+        return gen_url
+    except Exception as e:
+        return f"Error generating image: {str(e)}"
+
+# Step 6: Create UI components with reset functionality
+form_style = {'description_width': '120px'}
+input_width = '90%'
+
+# Create input widgets
+product_name = widgets.Text(
+    value="RecipeGenius",
+    description="Product Name:",
+    style=form_style,
+    layout=widgets.Layout(width=input_width)
+)
+
+dish = widgets.Text(
+    value="Spaghetti Carbonara",
+    description="Dish:",
+    style=form_style,
+    layout=widgets.Layout(width=input_width)
+)
+
+key_message = widgets.Text(
+    value="Cook with ease!",
+    description="Key Message:",
+    style=form_style,
+    layout=widgets.Layout(width=input_width)
+)
+
+tone = widgets.Dropdown(
+    options=['friendly', 'calm', 'exciting', 'elegant', 'professional'],
+    value='friendly',
+    description="Tone:",
+    style=form_style
+)
+
+color_scheme = widgets.ColorPicker(
+    concise=False,
+    value='#ff6347',  # Tomato red
+    description="Color Scheme:",
+    style=form_style
+)
+
+# Create output display areas
+caption_output = widgets.Output()
+prompt_output = widgets.Output()
+image_output = widgets.Output()
+
+# Create action buttons
+generate_btn = widgets.Button(
+    description="✨ Generate Content",
+    button_style='success',
+    icon='bolt',
+    layout=widgets.Layout(width='250px', margin='20px 0 0 0')
+)
+
+reset_btn = widgets.Button(
+    description="↻ Reset Form",
+    button_style='warning',
+    icon='refresh',
+    layout=widgets.Layout(width='150px', margin='20px 0 0 10px'),
+    disabled=True  # Disabled until after first generation
+)
+
+spinner = widgets.HTML(value="")
+
+# Step 7: Assemble UI components
+input_box = widgets.VBox([
+    widgets.HTML("<h2 style='color:#2E86e1'>🍳 Recipe Post Generator</h2>"),
+    widgets.HTML("<i>Fill the form below to create your social media content</i>"),
+    product_name,
+    dish,
+    key_message,
+    tone,
+    color_scheme,
+    widgets.HBox([generate_btn, reset_btn, spinner])
+], layout=widgets.Layout(padding='20px', width='70%'))
+
+output_box = widgets.VBox([
+    widgets.HTML("<h3 style='border-bottom:1px solid #eee; padding-bottom:10px'>Generated Content</h3>"),
+    widgets.Accordion(children=[caption_output, prompt_output], 
+                     titles=('📝 Social Media Caption', '🎨 Image Prompt')),
+    widgets.HTML("<h4 style='margin:25px 0 10px 0'>Generated Image</h4>"),
+    image_output
+])
+
+# Step 8: Create UI event handlers
+def on_generate_clicked(btn):
+    spinner.value = '<i class="fa fa-spinner fa-spin" style="font-size:24px; margin-left:15px"></i>'
+    generate_btn.disabled = True
+    reset_btn.disabled = True
+    
+    try:
+        # Clear previous outputs
+        caption_output.clear_output()
+        prompt_output.clear_output()
+        image_output.clear_output()
+        
+        # Get input values
+        color_name = {
+            '#ff6347': 'warm reds',
+            '#4682b4': 'cool blues',
+            '#32cd32': 'fresh greens'
+        }.get(color_scheme.value, f"custom ({color_scheme.value})")
+        
+        # Generate content
+        with caption_output:
+            display(widgets.HTML(
+                f"<div style='background:#f9f9f9; padding:15px; border-radius:5px; font-family:Arial'>"
+                f"<i class='fa fa-spinner fa-spin'></i> Generating content...</div>"
+            ))
+        
+        _, caption_text, image_prompt = generate_recipe_content(
+            product_name.value,
+            dish.value,
+            key_message.value,
+            tone.value,
+            color_name
+        )
+        
+        # Display caption
+        with caption_output:
+            caption_output.clear_output()
+            display(widgets.HTML(
+                f"<div style='background:#f9f9f9; padding:15px; border-radius:5px;"
+                f"font-family:Arial; font-size:14px'>{caption_text}</div>"
+            ))
+        
+        # Display prompt
+        with prompt_output:
+            display(widgets.HTML(
+                f"<div style='background:#f5f7ff; padding:15px; border-radius:5px;"
+                f"font-family:monospace; font-size:13px; white-space:pre-wrap'>{image_prompt}</div>"
+            ))
+        
+        # Generate and display image
+        with image_output:
+            display(widgets.HTML(
+                f"<div style='text-align:center; margin:10px; color:#666'>"
+                f"<i class='fa fa-spinner fa-spin'></i> Generating image...</div>"
+            ))
+            
+            result = get_pollinations_image(image_prompt)
+            
+            if "Error" not in str(result):
+                display(widgets.HTML(f"<div style='text-align:center; color:#2ecc71'>✅ Image generated successfully!</div>"))
+                display_image(result, "url")
+            else:
+                display(widgets.HTML(
+                    f"<div style='background:#ffebee; padding:15px; border-radius:5px; color:#c62828'>"
+                    f"❌ {result}</div>"
+                ))
+        
+        # Enable reset button after successful generation
+        reset_btn.disabled = False
+        
+    except Exception as e:
+        with caption_output:
+            display(widgets.HTML(
+                f"<div style='background:#ffebee; padding:15px; border-radius:5px; color:#c62828'>"
+                f"🚫 Error: {str(e)}</div>"
+            ))
+    finally:
+        generate_btn.disabled = False
+        spinner.value = ""
+
+def on_reset_clicked(btn):
+    # Reset input fields to default values
+    product_name.value = "RecipeGenius"
+    dish.value = "Spaghetti Carbonara"
+    key_message.value = "Cook with ease!"
+    tone.value = 'friendly'
+    color_scheme.value = '#ff6347'
+    
+    # Clear all output areas
+    caption_output.clear_output()
+    prompt_output.clear_output()
+    image_output.clear_output()
+    
+    # Disable reset button until next generation
+    reset_btn.disabled = True
+    
+    # Display reset confirmation
+    with caption_output:
+        display(widgets.HTML(
+            f"<div style='background:#e3f2fd; padding:15px; border-radius:5px; color:#1565c0; text-align:center'>"
+            f"✅ Form reset! Fill in new values and click Generate</div>"
+        ))
+
+# Attach event handlers
+generate_btn.on_click(on_generate_clicked)
+reset_btn.on_click(on_reset_clicked)
+
+# Step 9: Display the UI
+display(widgets.VBox([
+    widgets.HTML("""
+    <style>
+        h1, h2, h3, h3 { font-family: Arial; }
+        .widget-label { font-weight: bold !important; }
+        .output_image img { box-shadow: 0 4px 8px rgba(0,0,0,0.1); border-radius: 8px; }
+        .success-badge { 
+            background: #2ecc71; 
+            color: white; 
+            padding: 5px 10px; 
+            border-radius: 20px; 
+            display: inline-block;
+            margin-bottom: 10px;
+        }
+        .reset-confirm {
+            animation: fadeOut 3s forwards;
+        }
+        @keyframes fadeOut {
+            0% { opacity: 1; }
+            70% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+    </style>
+    """),
+    widgets.HBox([
+        input_box,
+        output_box
+    ], layout=widgets.Layout(height='100%'))
+]))
