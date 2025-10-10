@@ -11,18 +11,89 @@ import os
 import json
 from collections import deque
 import uuid
+import hashlib
 
-# Step 2: Define templates and registration codes
-class TemplateManager:
-    HISTORY_FILE = "social_media_history.json"
-    MAX_HISTORY = 3  # Keep only last 3 runs
-    # Predefined registration codes for each template
-    REGISTRATION_CODES = {
+# Step 2: Define templates and user management
+class UserManager:
+    USER_DB_FILE = "user_database.json"
+    TEMPLATE_CODES = {
         "Food": "FOOD-1234",
         "Advertisement": "AD-5678",
         "Book": "BOOK-9012"
     }
-    MASTER_CODE = "MASTER-CODE"  # Special code to view all templates
+    MASTER_CODE = "MASTER-CODE"
+
+    def __init__(self):
+        self.users = {}
+        self.current_user = None
+        self.load_users()
+        
+    def load_users(self):
+        """Load user database from file"""
+        if os.path.exists(self.USER_DB_FILE):
+            try:
+                with open(self.USER_DB_FILE, 'r') as f:
+                    self.users = json.load(f)
+            except:
+                self.users = {}
+    
+    def save_users(self):
+        """Save user database to file"""
+        with open(self.USER_DB_FILE, 'w') as f:
+            json.dump(self.users, f)
+    
+    def create_user(self, username, password, registration_code):
+        """Create a new user account"""
+        if username in self.users:
+            return False, "Username already exists"
+        
+        # Validate registration code
+        template = None
+        for t, code in self.TEMPLATE_CODES.items():
+            if registration_code == code:
+                template = t
+                break
+                
+        if not template and registration_code != self.MASTER_CODE:
+            return False, "Invalid registration code"
+        
+        # Hash password
+        salt = os.urandom(16)
+        hashed_pw = hashlib.pbkdf2_hmac('sha256', password.encode(), salt, 100000)
+        
+        # Store user (FIXED THE QUOTE HERE)
+        self.users[username] = {
+            "password": hashed_pw.hex(),  # Fixed the mismatched quote
+            "salt": salt.hex(),
+            "template": template,
+            "is_master": (registration_code == self.MASTER_CODE),
+            "created_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+        self.save_users()
+        return True, "Account created successfully"
+    
+    def authenticate(self, username, password):
+        """Authenticate a user"""
+        if username not in self.users:
+            return False, "User not found"
+        
+        user = self.users[username]
+        salt = bytes.fromhex(user['salt'])
+        hashed_pw = hashlib.pbkdf2_hmac('sha256', password.encode(), salt, 100000)
+        
+        if hashed_pw.hex() != user['password']:
+            return False, "Invalid password"
+        
+        self.current_user = {
+            "username": username,
+            "template": user['template'],
+            "is_master": user['is_master']
+        }
+        return True, "Login successful"
+
+class TemplateManager:
+    HISTORY_FILE = "social_media_history.json"
+    MAX_HISTORY = 3  # Keep only last 3 runs per user
 
     def __init__(self):
         # Define industry-specific templates
@@ -61,10 +132,9 @@ class TemplateManager:
                 "prompt": self.book_prompt
             }
         }
-        self.selected_template = None
         self.regeneration_count = 0
         self.max_regenerations = 20
-        self.history = deque(maxlen=self.MAX_HISTORY)
+        self.history = {}
         self.load_history()
 
     def load_history(self):
@@ -72,49 +142,34 @@ class TemplateManager:
         if os.path.exists(self.HISTORY_FILE):
             try:
                 with open(self.HISTORY_FILE, 'r') as f:
-                    history_data = json.load(f)
-                    self.history = deque(history_data, maxlen=self.MAX_HISTORY)
+                    self.history = json.load(f)
             except:
-                self.history = deque(maxlen=self.MAX_HISTORY)
+                self.history = {}
 
     def save_history(self):
         """Save history to file"""
         with open(self.HISTORY_FILE, 'w') as f:
-            json.dump(list(self.history), f)
+            json.dump(self.history, f)
 
-    def record_session(self, session_data):
-        """Record a session to history"""
+    def record_session(self, username, session_data):
+        """Record a session to user's history"""
+        if username not in self.history:
+            self.history[username] = deque(maxlen=self.MAX_HISTORY)
+        
+        # Convert images to base64 for storage
         session_data['images'] = [
             base64.b64encode(img).decode('utf-8') if img else None
             for img in session_data['images']
         ]
-        self.history.append(session_data)
+        self.history[username].append(session_data)
         self.save_history()
         
-    def get_template_for_code(self, code):
-        """Get template name for a given registration code"""
-        for template, reg_code in self.REGISTRATION_CODES.items():
-            if code == reg_code:
-                return template
-        if code == self.MASTER_CODE:
-            return "MASTER"
-        return None
-    
+    def get_user_history(self, username):
+        """Get history for a specific user"""
+        return self.history.get(username, deque(maxlen=self.MAX_HISTORY))
+        
     # Template-specific prompt generators
     def food_prompt(self, field_values, color_scheme):
-        prompt = f"""
-        Create a social media post for a recipe: {field_values['recipe_name']}.
-        Cuisine: {field_values['cuisine_type']}
-        Cooking Time: {field_values['cooking_time']}
-        Key Ingredients: {field_values['key_ingredients']}
-        Written tone: {field_values['tone']}
-        Image color scheme: {color_scheme}
-
-        Output:
-        1. A short, engaging social media caption (50-100 words) about the recipe that aligns with the {field_values['tone']} tone.
-        2. A detailed image prompt for AI image generators, describing a photorealistic, high-detail 1024x1024 image of the dish in a {field_values['tone']} atmosphere, using a {color_scheme} color palette.
-        """
-        # Simulated LLM output
         caption = (
             f"🍴 Discover our delicious {field_values['recipe_name']} recipe! "
             f"Perfect for {field_values['cuisine_type']} cuisine lovers. "
@@ -127,21 +182,9 @@ class TemplateManager:
             f"in a {field_values['tone']} atmosphere with {color_scheme} color palette, "
             f"professional food photography style, shallow depth of field."
         )
-        return prompt, caption, image_prompt
+        return caption, image_prompt
 
     def ad_prompt(self, field_values, color_scheme):
-        prompt = f"""
-        Create an advertisement for: {field_values['product_name']} ({field_values['product_type']}).
-        Key Features: {field_values['key_features']}
-        Target Audience: {field_values['target_audience']}
-        Written tone: {field_values['tone']}
-        Image color scheme: {color_scheme}
-
-        Output:
-        1. A short, compelling ad copy (50-100 words) targeting {field_values['target_audience']} with a {field_values['tone']} tone.
-        2. A detailed image prompt for AI image generators, describing a photorealistic, high-detail 1024x1024 advertisement image showing {field_values['product_name']} in use, with {color_scheme} color palette.
-        """
-        # Simulated LLM output
         caption = (
             f"✨ Introducing our new {field_values['product_name']} {field_values['product_type']}! "
             f"Perfect for {field_values['target_audience']}. Features: {field_values['key_features']}. "
@@ -153,21 +196,9 @@ class TemplateManager:
             f"highlighting {field_values['key_features']}, {field_values['tone']} atmosphere, "
             f"{color_scheme} color palette, professional product photography."
         )
-        return prompt, caption, image_prompt
+        return caption, image_prompt
 
     def book_prompt(self, field_values, color_scheme):
-        prompt = f"""
-        Create a social media post for the book: {field_values['book_title']} by {field_values['author_name']}.
-        Genre: {field_values['genre']}
-        Key Themes: {field_values['key_themes']}
-        Written tone: {field_values['tone']}
-        Image color scheme: {color_scheme}
-
-        Output:
-        1. A short, engaging book description (50-100 words) in a {field_values['tone']} tone.
-        2. A detailed image prompt for AI image generators, describing a photorealistic, high-detail 1024x1024 book cover design with {color_scheme} color palette.
-        """
-        # Simulated LLM output
         caption = (
             f"📚 New Release: {field_values['book_title']} by {field_values['author_name']}! "
             f"A {field_values['genre']} novel exploring {field_values['key_themes']}. "
@@ -179,72 +210,137 @@ class TemplateManager:
             f"{field_values['tone']} atmosphere, {color_scheme} color palette, "
             f"professional book cover design with title and author name clearly visible."
         )
-        return prompt, caption, image_prompt
+        return caption, image_prompt
 
-# Step 3: Create template manager instance
+# Step 3: Create manager instances
+user_manager = UserManager()
 template_manager = TemplateManager()
 
-# Step 4: Create UI components
+# Step 4: Create authentication UI components
 form_style = {'description_width': '150px'}
 input_width = '90%'
 
-# Registration system
-class RegistrationSystem:
+class AuthSystem:
     def __init__(self):
-        self.logged_in = False
-        self.user_template = None
-        self.is_master = False
         self.create_widgets()
         
     def create_widgets(self):
-        # Login widgets
-        self.code_input = widgets.Password(
+        # Sign Up Widgets
+        self.signup_username = widgets.Text(
+            description="Username:",
+            style=form_style,
+            layout=widgets.Layout(width=input_width)
+        )
+        self.signup_password = widgets.Password(
+            description="Password:",
+            style=form_style,
+            layout=widgets.Layout(width=input_width)
+        )
+        self.signup_code = widgets.Password(
             description="Registration Code:",
+            style=form_style,
+            layout=widgets.Layout(width=input_width)
+        )
+        self.signup_btn = widgets.Button(
+            description="Create Account",
+            button_style='primary',
+            layout=widgets.Layout(width='200px')
+        )
+        self.signup_status = widgets.Output()
+        
+        # Login Widgets
+        self.login_username = widgets.Text(
+            description="Username:",
+            style=form_style,
+            layout=widgets.Layout(width=input_width)
+        )
+        self.login_password = widgets.Password(
+            description="Password:",
             style=form_style,
             layout=widgets.Layout(width=input_width)
         )
         self.login_btn = widgets.Button(
             description="Login",
             button_style='primary',
-            layout=widgets.Layout(width='150px')
+            layout=widgets.Layout(width='200px')
         )
         self.login_status = widgets.Output()
         
+        # Logout Widget
+        self.logout_btn = widgets.Button(
+            description="Logout",
+            button_style='danger',
+            layout=widgets.Layout(width='100px', margin='20px 0 0 auto')
+        )
+        
         # Attach handlers
+        self.signup_btn.on_click(self.on_signup)
         self.login_btn.on_click(self.on_login)
+        self.logout_btn.on_click(self.on_logout)
+    
+    def on_signup(self, btn):
+        username = self.signup_username.value.strip()
+        password = self.signup_password.value.strip()
+        code = self.signup_code.value.strip()
+        
+        if not username or not password or not code:
+            with self.signup_status:
+                display(HTML("<div style='color:red;padding:10px'>All fields are required!</div>"))
+            return
+            
+        success, message = user_manager.create_user(username, password, code)
+        with self.signup_status:
+            self.signup_status.clear_output()
+            color = "green" if success else "red"
+            display(HTML(f"<div style='color:{color};padding:10px'>{message}</div>"))
     
     def on_login(self, btn):
-        code = self.code_input.value.strip()
-        template = template_manager.get_template_for_code(code)
+        username = self.login_username.value.strip()
+        password = self.login_password.value.strip()
         
-        if template == "MASTER":
-            self.logged_in = True
-            self.is_master = True
+        if not username or not password:
             with self.login_status:
-                display(HTML("<div style='color:green;padding:10px'>Master login successful!</div>"))
+                display(HTML("<div style='color:red;padding:10px'>Username and password required!</div>"))
+            return
+            
+        success, message = user_manager.authenticate(username, password)
+        with self.login_status:
+            self.login_status.clear_output()
+            color = "green" if success else "red"
+            display(HTML(f"<div style='color:{color};padding:10px'>{message}</div>"))
+            
+        if success:
             display_main_app()
-        elif template:
-            self.logged_in = True
-            self.user_template = template
-            with self.login_status:
-                display(HTML(f"<div style='color:green;padding:10px'>Login successful! Access granted for {template} template.</div>"))
-            display_main_app()
-        else:
-            with self.login_status:
-                display(HTML("<div style='color:red;padding:10px'>Invalid code. Please try again.</div>"))
+    
+    def on_logout(self, btn):
+        user_manager.current_user = None
+        display_auth_ui()
+    
+    def show_signup_form(self):
+        return widgets.VBox([
+            widgets.HTML("<h2 style='color:#2E86e1; margin-top:0'>📝 Create Account</h2>"),
+            widgets.HTML("<p>Enter your details to create a new account</p>"),
+            self.signup_username,
+            self.signup_password,
+            self.signup_code,
+            self.signup_btn,
+            self.signup_status
+        ])
     
     def show_login_form(self):
         return widgets.VBox([
-            widgets.HTML("<h2 style='color:#2E86e1; margin-top:0'>🔒 Registration Required</h2>"),
-            widgets.HTML("<p>Enter your registration code to access the content generator</p>"),
-            self.code_input,
+            widgets.HTML("<h2 style='color:#2E86e1; margin-top:0'>🔒 Login</h2>"),
+            widgets.HTML("<p>Enter your credentials to access your account</p>"),
+            self.login_username,
+            self.login_password,
             self.login_btn,
             self.login_status
         ])
 
-# Create registration system
-registration = RegistrationSystem()
+# Create authentication system
+auth_system = AuthSystem()
 
+# Step 5: Create main application UI components
 # Create dynamic form area
 dynamic_form_output = widgets.Output()
 
@@ -316,7 +412,7 @@ tab_nav = widgets.ToggleButtons(
     layout=widgets.Layout(width='100%', margin='0 0 20px 0')
 )
 
-# Step 5: Assemble UI components
+# Step 6: Assemble UI components
 content_generator_tab = widgets.VBox([
     widgets.HTML("<h2 style='color:#2E86e1; margin-top:0'>📱 Industry-Specific Content Generator</h2>"),
     widgets.HTML(f"<div id='template-info' style='margin-bottom:15px'></div>"),
@@ -334,14 +430,14 @@ content_generator_tab = widgets.VBox([
 
 past_records_tab = widgets.VBox([
     widgets.HTML("<h2 style='color:#2E86e1; margin-top:0'>📚 Past Records</h2>"),
-    widgets.HTML("<i>History of your last 3 generated image sets</i>"),
+    widgets.HTML("<i>History of your last 3 image sets</i>"),
     history_output
 ], layout=widgets.Layout(padding='20px'))
 
 # Create tab container
 tab_container = widgets.VBox([content_generator_tab])
 
-# Step 6: Create UI event handlers
+# Step 7: Create UI event handlers
 def download_image(image_bytes, filename_prefix="image"):
     """Trigger image download from browser"""
     filename = f"{filename_prefix}_{int(time.time())}.png"
@@ -404,10 +500,10 @@ def generate_images():
     status_output.clear_output()
 
     # Determine template
-    if registration.is_master:
+    if user_manager.current_user['is_master']:
         template_name = template_dropdown.value
     else:
-        template_name = registration.user_template
+        template_name = user_manager.current_user['template']
 
     if not template_name:
         with status_output:
@@ -460,7 +556,7 @@ def generate_images():
             f"<i class='fa fa-spinner fa-spin'></i> Generating content...</div>"
         ))
 
-    _, caption_text, image_prompt = template_manager.templates[template_name]['prompt'](field_values, color_name)
+    caption_text, image_prompt = template_manager.templates[template_name]['prompt'](field_values, color_name)
 
     # Display caption
     with caption_output:
@@ -546,8 +642,9 @@ def generate_images():
                 "images": image_data
             }
 
-        # Save this session to history immediately
-        template_manager.record_session(feedback_output.session_data)
+        # Save this session to history
+        username = user_manager.current_user['username']
+        template_manager.record_session(username, feedback_output.session_data)
 
 def on_generate_clicked(btn):
     generate_btn.disabled = True
@@ -607,10 +704,20 @@ def on_both_bad_clicked(btn):
             ))
 
 def display_history():
-    """Display the history of generated images"""
+    """Display the history of generated images for current user"""
     history_output.clear_output()
     with history_output:
-        if not template_manager.history:
+        if not user_manager.current_user:
+            display(HTML(
+                "<div style='text-align:center; padding:40px; color:#666; font-style:italic'>"
+                "Please login to view history</div>"
+            ))
+            return
+            
+        username = user_manager.current_user['username']
+        user_history = template_manager.get_user_history(username)
+        
+        if not user_history:
             display(HTML(
                 "<div style='text-align:center; padding:40px; color:#666; font-style:italic'>"
                 "No history found. Generate some images first!</div>"
@@ -618,7 +725,7 @@ def display_history():
             return
 
         display(HTML("<div style='history-container'>"))
-        for i, session in enumerate(template_manager.history):
+        for i, session in enumerate(user_history):
             # Convert base64 strings back to bytes for display
             images = []
             for img_base64 in session['images']:
@@ -630,7 +737,7 @@ def display_history():
             display(HTML(
                 f"<div class='history-card'>"
                 f"<h3 style='border-bottom:1px solid #eee; padding-bottom:10px'>"
-                f"Session {len(template_manager.history)-i} - {session['template']}</h3>"
+                f"Session {len(user_history)-i} - {session['template']}</h3>"
                 f"<p><b>Date:</b> {session['timestamp']}</p>"
             ))
             
@@ -680,17 +787,53 @@ def on_tab_change(change):
 
 def display_main_app():
     """Display the main application after login"""
+    # Clear any existing output
+    display(HTML("<div id='main-app-container'></div>"))
+    
+    # Show user info and logout button
+    user_info = widgets.HBox([
+        widgets.HTML(
+            f"<div style='padding:10px; background:#e3f2fd; border-radius:5px; margin-bottom:10px'>"
+            f"Logged in as: <b>{user_manager.current_user['username']}</b> | "
+            f"Template: <b>{user_manager.current_user['template'] or 'Master Access'}</b>"
+            f"</div>"),
+        auth_system.logout_btn
+    ], layout=widgets.Layout(width='100%', justify_content='space-between'))
+    
+    display(user_info)
+    
     # Show template dropdown only for master users
-    if registration.is_master:
+    if user_manager.current_user['is_master']:
         display(template_dropdown)
         if template_dropdown.value:
             generate_dynamic_form(template_dropdown.value)
     else:
         # Regular user - show their assigned template form
-        generate_dynamic_form(registration.user_template)
+        generate_dynamic_form(user_manager.current_user['template'])
     
     display(tab_nav)
     display(tab_container)
+
+def display_auth_ui():
+    """Display authentication UI"""
+    # Clear any existing output
+    display(HTML("<div id='auth-ui-container'></div>"))
+    
+    # Show registration codes
+    codes_html = "<div style='background:#e3f2fd; padding:15px; border-radius:5px; margin-bottom:20px'>"
+    codes_html += "<b>Registration Codes:</b><br>"
+    for template, code in UserManager.TEMPLATE_CODES.items():
+        codes_html += f"<b>{template}</b>: {code}<br>"
+    codes_html += f"<b>Master Code</b>: {UserManager.MASTER_CODE}<br>"
+    codes_html += "<small>Provide the appropriate code during signup based on your template assignment</small></div>"
+    
+    display(HTML(codes_html))
+    
+    # Create tabs for signup and login
+    auth_tabs = widgets.Tab()
+    auth_tabs.children = [auth_system.show_signup_form(), auth_system.show_login_form()]
+    auth_tabs.titles = ['Sign Up', 'Login']
+    display(auth_tabs)
 
 # Attach event handlers
 generate_btn.on_click(on_generate_clicked)
@@ -700,22 +843,13 @@ both_bad_btn.on_click(on_both_bad_clicked)
 tab_nav.observe(on_tab_change, names='value')
 template_dropdown.observe(on_template_change, names='value')
 
-# Step 7: Display the UI
-if registration.logged_in:
+# Step 8: Display the UI
+if user_manager.current_user:
     display_main_app()
 else:
-    # Show registration codes at the top
-    codes_html = "<div style='background:#e3f2fd; padding:15px; border-radius:5px; margin-bottom:20px'>"
-    codes_html += "<b>Registration Codes:</b><br>"
-    for template, code in template_manager.REGISTRATION_CODES.items():
-        codes_html += f"<b>{template}</b>: {code}<br>"
-    codes_html += f"<b>Master Code</b>: {template_manager.MASTER_CODE}<br>"
-    codes_html += "<small>Provide the appropriate code to users based on their template assignment</small></div>"
-    
-    display(HTML(codes_html))
-    display(registration.show_login_form())
+    display_auth_ui()
 
-# Step 8: Image generation function
+# Step 9: Image generation function
 def get_pollinations_image(image_prompt, seed=None):
     try:
         if seed is None:
