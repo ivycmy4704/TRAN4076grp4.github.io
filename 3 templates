@@ -12,11 +12,17 @@ import json
 from collections import deque
 import uuid
 
-# Step 2: Define templates and state management with persistent storage
+# Step 2: Define templates and registration codes
 class TemplateManager:
     HISTORY_FILE = "social_media_history.json"
-    REGISTRATION_FILE = "registration_codes.json"
     MAX_HISTORY = 3  # Keep only last 3 runs
+    # Predefined registration codes for each template
+    REGISTRATION_CODES = {
+        "Food": "FOOD-1234",
+        "Advertisement": "AD-5678",
+        "Book": "BOOK-9012"
+    }
+    MASTER_CODE = "MASTER-CODE"  # Special code to view all templates
 
     def __init__(self):
         # Define industry-specific templates
@@ -59,12 +65,10 @@ class TemplateManager:
         self.regeneration_count = 0
         self.max_regenerations = 20
         self.history = deque(maxlen=self.MAX_HISTORY)
-        self.registration_codes = {}
-        self.load_data()
+        self.load_history()
 
-    def load_data(self):
-        """Load history and registration codes from files"""
-        # Load history
+    def load_history(self):
+        """Load history from file if exists"""
         if os.path.exists(self.HISTORY_FILE):
             try:
                 with open(self.HISTORY_FILE, 'r') as f:
@@ -72,28 +76,11 @@ class TemplateManager:
                     self.history = deque(history_data, maxlen=self.MAX_HISTORY)
             except:
                 self.history = deque(maxlen=self.MAX_HISTORY)
-        
-        # Load registration codes
-        if os.path.exists(self.REGISTRATION_FILE):
-            try:
-                with open(self.REGISTRATION_FILE, 'r') as f:
-                    self.registration_codes = json.load(f)
-            except:
-                self.registration_codes = {}
-        else:
-            # Generate master code if none exists
-            self.registration_codes["master"] = str(uuid.uuid4())
-            self.save_registration_codes()
 
     def save_history(self):
         """Save history to file"""
         with open(self.HISTORY_FILE, 'w') as f:
             json.dump(list(self.history), f)
-            
-    def save_registration_codes(self):
-        """Save registration codes to file"""
-        with open(self.REGISTRATION_FILE, 'w') as f:
-            json.dump(self.registration_codes, f)
 
     def record_session(self, session_data):
         """Record a session to history"""
@@ -103,21 +90,15 @@ class TemplateManager:
         ]
         self.history.append(session_data)
         self.save_history()
-
-    def select_template(self, name):
-        self.selected_template = name
-        self.regeneration_count = 0
         
-    def generate_code(self, user_id):
-        """Generate and store a new registration code for a user"""
-        code = str(uuid.uuid4())
-        self.registration_codes[user_id] = code
-        self.save_registration_codes()
-        return code
-        
-    def verify_code(self, code):
-        """Verify if registration code is valid"""
-        return code in self.registration_codes.values()
+    def get_template_for_code(self, code):
+        """Get template name for a given registration code"""
+        for template, reg_code in self.REGISTRATION_CODES.items():
+            if code == reg_code:
+                return template
+        if code == self.MASTER_CODE:
+            return "MASTER"
+        return None
     
     # Template-specific prompt generators
     def food_prompt(self, field_values, color_scheme):
@@ -211,7 +192,8 @@ input_width = '90%'
 class RegistrationSystem:
     def __init__(self):
         self.logged_in = False
-        self.user_id = None
+        self.user_template = None
+        self.is_master = False
         self.create_widgets()
         
     def create_widgets(self):
@@ -228,52 +210,28 @@ class RegistrationSystem:
         )
         self.login_status = widgets.Output()
         
-        # Admin panel widgets
-        self.user_id_input = widgets.Text(
-            description="User ID:",
-            style=form_style,
-            layout=widgets.Layout(width='300px')
-        )
-        self.generate_btn = widgets.Button(
-            description="Generate Code",
-            button_style='info',
-            layout=widgets.Layout(width='150px')
-        )
-        self.admin_output = widgets.Output()
-        
         # Attach handlers
         self.login_btn.on_click(self.on_login)
-        self.generate_btn.on_click(self.on_generate_code)
     
     def on_login(self, btn):
         code = self.code_input.value.strip()
-        if template_manager.verify_code(code):
+        template = template_manager.get_template_for_code(code)
+        
+        if template == "MASTER":
             self.logged_in = True
-            self.user_id = [k for k, v in template_manager.registration_codes.items() if v == code][0]
+            self.is_master = True
             with self.login_status:
-                display(HTML("<div style='color:green;padding:10px'>Login successful!</div>"))
+                display(HTML("<div style='color:green;padding:10px'>Master login successful!</div>"))
+            display_main_app()
+        elif template:
+            self.logged_in = True
+            self.user_template = template
+            with self.login_status:
+                display(HTML(f"<div style='color:green;padding:10px'>Login successful! Access granted for {template} template.</div>"))
             display_main_app()
         else:
             with self.login_status:
                 display(HTML("<div style='color:red;padding:10px'>Invalid code. Please try again.</div>"))
-    
-    def on_generate_code(self, btn):
-        user_id = self.user_id_input.value.strip()
-        if not user_id:
-            with self.admin_output:
-                display(HTML("<div style='color:red;padding:10px'>Please enter a User ID</div>"))
-            return
-            
-        code = template_manager.generate_code(user_id)
-        with self.admin_output:
-            self.admin_output.clear_output()
-            display(HTML(
-                f"<div style='background:#e8f5e9;padding:15px;border-radius:5px;margin-top:10px'>"
-                f"<b>Generated Code for {user_id}:</b><br>"
-                f"<code style='font-size:18px'>{code}</code><br>"
-                f"<small>Provide this code to the user for registration</small>"
-                f"</div>"
-            ))
     
     def show_login_form(self):
         return widgets.VBox([
@@ -282,15 +240,6 @@ class RegistrationSystem:
             self.code_input,
             self.login_btn,
             self.login_status
-        ])
-    
-    def show_admin_panel(self):
-        return widgets.VBox([
-            widgets.HTML("<h3 style='color:#2E86e1; margin-top:0'>🔑 Admin Panel</h3>"),
-            widgets.HTML("<p>Generate registration codes for users:</p>"),
-            self.user_id_input,
-            self.generate_btn,
-            self.admin_output
         ])
 
 # Create registration system
@@ -307,7 +256,7 @@ color_scheme = widgets.ColorPicker(
     style=form_style
 )
 
-# Create template selection
+# Create template selection (only for master users)
 template_dropdown = widgets.Dropdown(
     options=list(template_manager.templates.keys()),
     description="Industry Template:",
@@ -360,18 +309,17 @@ feedback_buttons = widgets.HBox(
 
 # Create tab navigation
 tab_nav = widgets.ToggleButtons(
-    options=['Content Generator', 'Past Records', 'Admin Panel'],
+    options=['Content Generator', 'Past Records'],
     value='Content Generator',
     button_style='',
-    tooltips=['Create new content', 'View history', 'Generate registration codes'],
+    tooltips=['Create new content', 'View history of generated images'],
     layout=widgets.Layout(width='100%', margin='0 0 20px 0')
 )
 
 # Step 5: Assemble UI components
 content_generator_tab = widgets.VBox([
     widgets.HTML("<h2 style='color:#2E86e1; margin-top:0'>📱 Industry-Specific Content Generator</h2>"),
-    widgets.HTML("<i>Select an industry template and generate content</i>"),
-    template_dropdown,
+    widgets.HTML(f"<div id='template-info' style='margin-bottom:15px'></div>"),
     dynamic_form_output,
     color_scheme,
     generate_btn,
@@ -389,8 +337,6 @@ past_records_tab = widgets.VBox([
     widgets.HTML("<i>History of your last 3 generated image sets</i>"),
     history_output
 ], layout=widgets.Layout(padding='20px'))
-
-admin_panel_tab = registration.show_admin_panel()
 
 # Create tab container
 tab_container = widgets.VBox([content_generator_tab])
@@ -441,6 +387,12 @@ def generate_dynamic_form(template_name):
     
     # Store reference to widgets
     dynamic_form_output.field_widgets = {field['name']: widget for field, widget in zip(template['fields'], form_widgets)}
+    
+    # Update template info display
+    display(HTML(
+        f"<script>document.getElementById('template-info').innerHTML = "
+        f"\"<i>Template: <b>{template_name}</b></i>\";</script>"
+    ))
 
 def generate_images():
     """Generate images based on selected template"""
@@ -451,8 +403,12 @@ def generate_images():
     feedback_output.clear_output()
     status_output.clear_output()
 
-    # Check template selection
-    template_name = template_dropdown.value
+    # Determine template
+    if registration.is_master:
+        template_name = template_dropdown.value
+    else:
+        template_name = registration.user_template
+
     if not template_name:
         with status_output:
             display(HTML(
@@ -482,10 +438,6 @@ def generate_images():
                 ))
             return
 
-    # Update template manager
-    template_manager.select_template(template_name)
-    template_data = template_manager.templates[template_name]
-
     # Show status
     with status_output:
         display(HTML(
@@ -508,7 +460,7 @@ def generate_images():
             f"<i class='fa fa-spinner fa-spin'></i> Generating content...</div>"
         ))
 
-    _, caption_text, image_prompt = template_data['prompt'](field_values, color_name)
+    _, caption_text, image_prompt = template_manager.templates[template_name]['prompt'](field_values, color_name)
 
     # Display caption
     with caption_output:
@@ -590,7 +542,6 @@ def generate_images():
             feedback_output.session_data = {
                 "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 "template": template_name,
-                "user_id": registration.user_id,
                 "field_values": field_values,
                 "images": image_data
             }
@@ -634,7 +585,7 @@ def on_both_bad_clicked(btn):
         with feedback_output:
             display(HTML(
                 "<div style='background:#fff8e1; padding:10px; border-radius:5px; color:#f57f17; text-align:center'>"
-                "⚠️ Maximum regenerations reached (20 attempts). Please select a new template.</div>"
+                "⚠️ Maximum regenerations reached (20 attempts). Please start a new session.</div>"
             ))
         return
 
@@ -681,7 +632,6 @@ def display_history():
                 f"<h3 style='border-bottom:1px solid #eee; padding-bottom:10px'>"
                 f"Session {len(template_manager.history)-i} - {session['template']}</h3>"
                 f"<p><b>Date:</b> {session['timestamp']}</p>"
-                f"<p><b>User:</b> {session.get('user_id', 'N/A')}</p>"
             ))
             
             # Display field values
@@ -716,7 +666,7 @@ def display_history():
         display(HTML("</div>"))
 
 def on_template_change(change):
-    """Handle template change event"""
+    """Handle template change event (for master users)"""
     if change['new']:
         generate_dynamic_form(change['new'])
 
@@ -725,13 +675,20 @@ def on_tab_change(change):
     if change['new'] == 'Past Records':
         tab_container.children = [past_records_tab]
         display_history()
-    elif change['new'] == 'Admin Panel':
-        tab_container.children = [admin_panel_tab]
     else:
         tab_container.children = [content_generator_tab]
 
 def display_main_app():
     """Display the main application after login"""
+    # Show template dropdown only for master users
+    if registration.is_master:
+        display(template_dropdown)
+        if template_dropdown.value:
+            generate_dynamic_form(template_dropdown.value)
+    else:
+        # Regular user - show their assigned template form
+        generate_dynamic_form(registration.user_template)
+    
     display(tab_nav)
     display(tab_container)
 
@@ -747,20 +704,18 @@ template_dropdown.observe(on_template_change, names='value')
 if registration.logged_in:
     display_main_app()
 else:
-    # Show master code at the top
-    master_code = template_manager.registration_codes.get("master", "Not generated")
-    display(HTML(
-        f"<div style='background:#e3f2fd; padding:15px; border-radius:5px; margin-bottom:20px'>"
-        f"<b>Master Registration Code:</b> {master_code}<br>"
-        f"<small>Provide this to users for registration</small></div>"
-    ))
+    # Show registration codes at the top
+    codes_html = "<div style='background:#e3f2fd; padding:15px; border-radius:5px; margin-bottom:20px'>"
+    codes_html += "<b>Registration Codes:</b><br>"
+    for template, code in template_manager.REGISTRATION_CODES.items():
+        codes_html += f"<b>{template}</b>: {code}<br>"
+    codes_html += f"<b>Master Code</b>: {template_manager.MASTER_CODE}<br>"
+    codes_html += "<small>Provide the appropriate code to users based on their template assignment</small></div>"
+    
+    display(HTML(codes_html))
     display(registration.show_login_form())
 
-# Display initial template form if logged in
-if registration.logged_in and template_dropdown.value:
-    generate_dynamic_form(template_dropdown.value)
-
-# Step 8: Image generation function (unchanged)
+# Step 8: Image generation function
 def get_pollinations_image(image_prompt, seed=None):
     try:
         if seed is None:
