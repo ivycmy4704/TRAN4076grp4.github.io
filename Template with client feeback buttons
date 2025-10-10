@@ -13,8 +13,8 @@ import webcolors
 from google.colab import files
 from fpdf import FPDF
 
-# Global list for selected images
-selected_images = []
+# Global list for all generated images
+all_generated_images = []
 
 # Global seed manager
 seed_manager = {'current': 42}
@@ -119,10 +119,10 @@ def get_pollinations_image(image_prompt, seed=42):
     except Exception as e:
         return f"Error generating Pollinations image: {str(e)}"
 
-# Step 8: Function to create and download PDF with selected images
-def create_pdf_and_download():
+# Step 8: Function to create and download a single PDF with all generated images
+def create_pdf_and_download(images, industry_topic):
     pdf = FPDF()
-    for idx, url in enumerate(selected_images, 1):
+    for idx, url in enumerate(images, 1):
         try:
             response = requests.get(url)
             response.raise_for_status()
@@ -132,10 +132,11 @@ def create_pdf_and_download():
             pdf.add_page()
             pdf.image(img_filename, x=10, y=10, w=190)
         except Exception as e:
-            print(f"Error adding image to PDF: {str(e)}")
-    pdf_filename = "selected_content_images.pdf"
+            print(f"Error adding image {idx} to PDF: {str(e)}")
+    pdf_filename = f"{industry_topic.replace(' ', '_')}_generated_content_images.pdf"
     pdf.output(pdf_filename)
     files.download(pdf_filename)
+    print(f"PDF saved and downloaded as {pdf_filename}")
 
 # Step 9: Create interactive interface
 product_name_widget = widgets.Text(value="ContentGenius", description="Product Name:")
@@ -215,6 +216,7 @@ def on_generate(button):
         tone = tone_widget.value
         special_requirements = special_requirements_widget.value
         color_scheme = [webcolors.hex_to_rgb(cp.value) for cp in color_pickers]
+        all_generated_images.clear()  # Clear previous images
         for i, usage_widget in enumerate(page_usages, 1):
             page_usage = usage_widget.value
             caption, image_prompt, guide_text = generate_page_content(
@@ -237,6 +239,10 @@ def on_generate(button):
                     url1 = get_pollinations_image(image_prompt, seed=seed1)
                     url2 = get_pollinations_image(image_prompt, seed=seed2)
                     current_urls = [url1, url2]
+                    if "Error" not in str(url1):
+                        all_generated_images.append(url1)
+                    if "Error" not in str(url2):
+                        all_generated_images.append(url2)
                     with page_image_output:
                         page_image_output.clear_output(wait=True)
                         display(HTML("<h4>Option 1</h4>"))
@@ -257,13 +263,9 @@ def on_generate(button):
                         except Exception as e:
                             print(f"Error downloading image: {str(e)}")
                 def on_like1(b):
-                    selected_images.append(current_urls[0])
                     download_image(current_urls[0], 1)
-                    create_pdf_and_download()
                 def on_like2(b):
-                    selected_images.append(current_urls[1])
                     download_image(current_urls[1], 2)
-                    create_pdf_and_download()
                 def on_bad(b):
                     nonlocal regen_count
                     if regen_count < max_regen:
@@ -293,6 +295,11 @@ def on_generate(button):
                     display(HTML("<h4>Guide Text</h4>"))
                     print(guide_text)
             create_page_section(image_prompt, page_usage, i, caption, guide_text)
+        # Generate and download a single PDF with all images after processing all pages
+        if all_generated_images:
+            create_pdf_and_download(all_generated_images, industry_topic)
+        else:
+            print("No images were generated successfully.")
 
 generate_button.on_click(on_generate)
 
