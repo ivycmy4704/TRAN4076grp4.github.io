@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Industry-Specific Content Generator</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f5f7ff; margin: 0; }
+    .container { max-width: 800px; margin: 40px auto; background: #fff;
+                 border-radius: 10px; padding: 36px; box-shadow: 0 4px 18px #d8e5fa; }
+    h2 { color: #2E86e1; }
+    .tabs button { background: #e3f2fd; border: none; padding: 10px 30px; margin-right: 6px;
+                   border-radius: 99px; font-size: 16px; color: #2E86e1; cursor: pointer;}
+    .tabs button.active { background: #2E86e1; color: #fff;  }
+    .hidden { display: none; }
+    .form-group { margin: 14px 0; }
+    label { font-weight: bold; display: block; }
+    input, select { font-size: 15px; padding: 6px; border-radius: 6px; border: 1px solid #e3f2fd; width: 97%; }
+    button.action { margin: 24px 0 0 0; background: #2E86e1; color: #fff; padding: 12px 22px; border-radius: 7px; border:none; font-size:17px; cursor:pointer; }
+    button.danger {background:#d32f2f;}
+    .output { background: #f9f9f9; padding: 15px; border-radius: 6px;
+              margin: 20px 0 0 0; font-size: 16px; min-height: 40px;}
+    .feedback { margin-top: 24px; display: flex; gap: 10px; justify-content: center;}
+    .history { background: #f0f8ff; margin: 25px 0; border-radius: 7px; padding: 16px;}
+    .image-preview { width:220px; height:220px; object-fit:contain; padding:7px; background:#fff;}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>📱 Industry-Specific Content Generator</h2>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button id="tabLogin" class="active">Login</button>
+      <button id="tabSignup">Sign Up</button>
+      <button id="tabApp" class="hidden">App</button>
+      <button id="tabHistory" class="hidden">Past Records</button>
+    </div>
+
+    <!-- Login Form -->
+    <div id="loginPanel">
+      <div class="form-group">
+        <label>Username:</label>
+        <input type="text" id="loginUsername"/>
+      </div>
+      <div class="form-group">
+        <label>Password:</label>
+        <input type="password" id="loginPassword"/>
+      </div>
+      <button onclick="doLogin()" class="action">Login</button>
+      <div id="loginStatus" class="output"></div>
+    </div>
+
+    <!-- Signup Form -->
+    <div id="signupPanel" class="hidden">
+      <div class="form-group">
+        <label>Username:</label>
+        <input type="text" id="signupUsername"/>
+      </div>
+      <div class="form-group">
+        <label>Password:</label>
+        <input type="password" id="signupPassword"/>
+      </div>
+      <div class="form-group">
+        <label>Registration Code:
+          <small>(Food: FOOD-1234, Advertisement: AD-5678, Book: BOOK-9012, Master: MASTER-CODE)</small>
+        </label>
+        <input type="text" id="signupCode"/>
+      </div>
+      <button onclick="doSignup()" class="action">Sign Up</button>
+      <div id="signupStatus" class="output"></div>
+    </div>
+
+    <!-- Main App Panel -->
+    <div id="appPanel" class="hidden">
+      <div>
+        <span id="userInfo"></span>
+        <button onclick="doLogout()" class="action danger" style="float:right;">Logout</button>
+      </div><br>
+      <div class="form-group">
+        <label>Industry Template:</label>
+        <select id="templateDropdown" onchange="showTemplateForm()">
+          <option value="">-- Select --</option>
+          <option value="Food">Food</option>
+          <option value="Advertisement">Advertisement</option>
+          <option value="Book">Book</option>
+        </select>
+      </div>
+      <form id="dynamicForm"></form>
+      <div class="form-group">
+        <label>Color Scheme:</label>
+        <input type="color" id="colorScheme" value="#4682B4"/>
+      </div>
+      <button onclick="generateContent(event)" class="action">✨ Generate Content</button>
+      <div id="captionOutput" class="output"></div>
+      <div id="promptOutput" class="output"></div>
+      <div id="imageOutput" class="output"></div>
+      <div class="feedback">
+        <button onclick="likeThis()" class="action">👍 I like this</button>
+        <button onclick="likeThat()" class="action">👍 I like that</button>
+        <button onclick="bothBad()" class="action danger">👎 Both bad</button>
+      </div>
+    </div>
+
+    <!-- History Panel -->
+    <div id="historyPanel" class="hidden">
+      <div id="historyOutput"></div>
+    </div>
+  </div>
+<script>
+  // --------- Data & Variables ---------
+  let currentUser = null;
+  let currentTemplate = null;
+  let sessions = {}; // {username:[...]}
+
+  const TEMPLATE_CODES = {Food:"FOOD-1234", Advertisement:"AD-5678", Book:"BOOK-9012"};
+  const MASTER_CODE = "MASTER-CODE";
+
+  const templates = {
+    "Food": [
+      {name: "recipe_name", description: "Recipe Name:"},
+      {name: "cuisine_type", description: "Cuisine Type:"},
+      {name: "cooking_time", description: "Cooking Time:"},
+      {name: "key_ingredients", description: "Key Ingredients:"},
+      {name: "tone", description: "Tone:", options: ["friendly", "exciting", "comforting"]}
+    ],
+    "Advertisement": [
+      {name: "product_name", description: "Product Name:"},
+      {name: "product_type", description: "Product Type:"},
+      {name: "key_features", description: "Key Features:"},
+      {name: "target_audience", description: "Target Audience:"},
+      {name: "tone", description: "Tone:", options: ["professional", "trendy", "luxurious"]}
+    ],
+    "Book": [
+      {name: "book_title", description: "Book Title:"},
+      {name: "author_name", description: "Author Name:"},
+      {name: "genre", description: "Genre:"},
+      {name: "key_themes", description: "Key Themes:"},
+      {name: "tone", description: "Tone:", options: ["mysterious", "inspirational", "dramatic"]}
+    ]
+  }
+
+  // --------- Tabs and Panels ---------
+  function showTab(tab) {
+    ['tabLogin','tabSignup','tabApp','tabHistory'].forEach(tid=>{
+      document.getElementById(tid).classList.remove('active');
+    });
+    document.getElementById(tab).classList.add('active');
+    document.getElementById('loginPanel').classList.add('hidden');
+    document.getElementById('signupPanel').classList.add('hidden');
+    document.getElementById('appPanel').classList.add('hidden');
+    document.getElementById('historyPanel').classList.add('hidden');
+    if(tab=='tabLogin') document.getElementById('loginPanel').classList.remove('hidden');
+    if(tab=='tabSignup') document.getElementById('signupPanel').classList.remove('hidden');
+    if(tab=='tabApp') document.getElementById('appPanel').classList.remove('hidden');
+    if(tab=='tabHistory') document.getElementById('historyPanel').classList.remove('hidden');
+    ['tabApp','tabHistory'].forEach(t=>document.getElementById(t).classList.add('hidden'));
+    if(currentUser){
+      document.getElementById('tabApp').classList.remove('hidden');
+      document.getElementById('tabHistory').classList.remove('hidden');
+    }
+  }
+  document.getElementById('tabLogin').onclick = ()=>showTab('tabLogin');
+  document.getElementById('tabSignup').onclick = ()=>showTab('tabSignup');
+  document.getElementById('tabApp').onclick = ()=>showTab('tabApp');
+  document.getElementById('tabHistory').onclick = ()=>{showTab('tabHistory'); displayHistory();};
+
+  // --------- Login/Signup Sim ---------
+  function doLogin() {
+    let user = document.getElementById("loginUsername").value.trim();
+    let pw   = document.getElementById("loginPassword").value.trim();
+    if(!user||!pw){
+      document.getElementById("loginStatus").innerText="Please enter username and password!";
+      return;
+    }
+    // No database - just accept any username
+    currentUser = user;
+    document.getElementById("userInfo").innerHTML =
+      `<div>Logged in as: <b>${user}</b></div>`;
+    showTab('tabApp');
+  }
+  function doSignup() {
+    let user = document.getElementById("signupUsername").value.trim();
+    let pw   = document.getElementById("signupPassword").value.trim();
+    let rc   = document.getElementById("signupCode").value.trim();
+    if(!user||!pw||!rc){
+      document.getElementById("signupStatus").innerText="Fill all fields!";
+      return;
+    }
+    // Simulate registration code
+    if(rc===MASTER_CODE || Object.values(TEMPLATE_CODES).includes(rc)){
+      document.getElementById("signupStatus").innerText="Sign up successful! Please login.";
+    }else{
+      document.getElementById("signupStatus").innerText="Invalid registration code!";
+    }
+  }
+  function doLogout(){
+    currentUser = null;
+    showTab('tabLogin');
+  }
+
+  // --------- Dynamic Form ---------
+  function showTemplateForm() {
+    let sel = document.getElementById("templateDropdown").value;
+    currentTemplate = sel;
+    let form = document.getElementById("dynamicForm");
+    form.innerHTML = "";
+    if (!sel) return;
+    templates[sel].forEach(fld => {
+      let label = document.createElement("label");
+      label.innerText = fld.description;
+      form.appendChild(label);
+      let input;
+      if (fld.options) {
+        input = document.createElement("select");
+        fld.options.forEach(opt => {
+          let option = document.createElement("option");
+          option.value = opt;
+          option.innerText = opt;
+          input.appendChild(option);
+        });
+      } else {
+        input = document.createElement("input");
+        input.type = "text";
+      }
+      input.name = fld.name;
+      form.appendChild(input);
+    });
+  }
+
+  // --------- Content/Prompt Generation ---------
+  function generateContent(e) {
+    e.preventDefault && e.preventDefault();
+    if(!currentTemplate){
+      document.getElementById("captionOutput").innerText = "Please select a template!";
+      return;
+    }
+    let fields = {};
+    templates[currentTemplate].forEach(f => {
+      let el = document.querySelector(`#dynamicForm [name='${f.name}']`);
+      fields[f.name] = el?el.value:"";
+    });
+    let color = document.getElementById("colorScheme").value;
+    let caption = "";
+    let prompt = "";
+
+    // Sample prompts
+    if (currentTemplate == "Food") {
+      caption = `🍴 Discover our delicious ${fields.recipe_name} recipe! Perfect for ${fields.cuisine_type} cuisine lovers. Ready in just ${fields.cooking_time} with ${fields.key_ingredients}. #${fields.cuisine_type.replace(" ","")} #Foodie`;
+      prompt = `A photorealistic image of ${fields.recipe_name}, ${fields.cuisine_type} cuisine, featuring ${fields.key_ingredients}, in a ${fields.tone} atmosphere with color ${color}.`;
+    } else if (currentTemplate == "Advertisement") {
+      caption = `✨ Introducing our new ${fields.product_name} ${fields.product_type}! Perfect for ${fields.target_audience}. Features: ${fields.key_features}.`;
+      prompt = `A photorealistic advertisement of ${fields.product_name} (${fields.product_type}) for ${fields.target_audience}, highlighting ${fields.key_features}, ${fields.tone} atmosphere, color ${color}.`;
+    } else if (currentTemplate == "Book") {
+      caption = `📚 New Release: ${fields.book_title} by ${fields.author_name}! A ${fields.genre} novel exploring ${fields.key_themes}.`;
+      prompt = `Book cover for '${fields.book_title}' by ${fields.author_name}, ${fields.genre} genre, themes: ${fields.key_themes}, ${fields.tone} atmosphere, color ${color}.`;
+    }
+
+    document.getElementById("captionOutput").innerText = caption;
+    document.getElementById("promptOutput").innerText = prompt;
+
+    // ---- Simulated image generation ----
+    let imgSrc = "https://dummyimage.com/400x400/4682b4/ffffff.png&text=Image+goes+here";
+    document.getElementById("imageOutput").innerHTML =
+      `<img src="${imgSrc}" alt="Generated" class="image-preview"/>`;
+    saveSession(fields, caption, prompt, imgSrc);
+  }
+
+  // --------- Feedback & History ---------
+  function likeThis(){ alert("👍 You liked first image."); }
+  function likeThat(){ alert("👍 You liked second image."); }
+  function bothBad(){ alert("👎 Regeneration requested."); }
+
+  function saveSession(fields,caption,prompt,imgSrc){
+    if(!currentUser) return;
+    if(!sessions[currentUser]) sessions[currentUser] = [];
+    sessions[currentUser].unshift({
+      timestamp: (new Date()).toLocaleString(),
+      template: currentTemplate,
+      fields,caption,prompt,imgSrc
+    });
+    // Keep only last 3
+    if(sessions[currentUser].length>3) sessions[currentUser].pop();
+  }
+
+  function displayHistory(){
+    let historyOutput = document.getElementById("historyOutput");
+    historyOutput.innerHTML = "";
+    if(!currentUser || !sessions[currentUser] || sessions[currentUser].length==0){
+      historyOutput.innerHTML = `<div class="history">No history found. Generate some images first!</div>`;
+      return;
+    }
+    let histories = sessions[currentUser];
+    histories.forEach((session,i)=>{
+      let params = Object.entries(session.fields).map(([k,v])=>
+        `<li><b>${k.replace(/_/g," ")}</b>: ${v}</li>`).join('');
+      historyOutput.innerHTML+=
+      `<div class="history">
+        <h3>Session ${i+1} - ${session.template}</h3>
+        <p><b>Date:</b> ${session.timestamp}</p>
+        <ul>${params}</ul>
+        <div>
+          <img src="${session.imgSrc}" class="image-preview"/>
+          <button onclick="downloadHistoryImage('${session.imgSrc}')">Download Image</button>
+        </div>
+        <hr>
+      </div>`;
+    });
+  }
+  function downloadHistoryImage(url){
+    // Simulate download
+    let link = document.createElement("a");
+    link.href = url;
+    link.download = "generated_image.png";
+    link.click();
+  }
+
+  // --------- Tabs (show login first) ---------
+  window.onload = function(){
+    showTab('tabLogin');
+  }
+</script>
+</body>
+</html>
