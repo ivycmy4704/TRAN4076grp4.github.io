@@ -1,3 +1,6 @@
+<!DOCTYPE html>
+<html>
+
 # Step 1: Import necessary libraries
 import requests
 import random
@@ -869,3 +872,5 @@ def get_pollinations_image(image_prompt, seed=None):
         return response.content, seed
     except Exception as e:
         return None, f"Error generating image: {str(e)}"
+
+</html>
