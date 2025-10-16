@@ -1,5 +1,4 @@
-<!DOCTYPE html>
-<html>
+
 
 # Step 1: Import necessary libraries
 import requests
@@ -873,4 +872,4 @@ def get_pollinations_image(image_prompt, seed=None):
     except Exception as e:
         return None, f"Error generating image: {str(e)}"
 
-</html>
+
