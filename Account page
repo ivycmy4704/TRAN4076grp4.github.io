@@ -1,0 +1,44 @@
+# Import necessary libraries
+import ipywidgets as widgets
+from IPython.display import display, HTML
+import time
+
+# Global variables for user information (simulating storage)
+user_info = {
+    'username': 'default_user',
+    'password': 'default_password',
+    'registration_code': 'ABC123'  # This is fixed and non-editable
+}
+
+# Create widgets
+username_widget = widgets.Text(value=user_info['username'], description='Username:')
+password_widget = widgets.Password(value=user_info['password'], description='Password:')
+registration_code_widget = widgets.Label(value=f"Registration Code: {user_info['registration_code']}")
+save_button = widgets.Button(description='Save Changes')
+output = widgets.Output()
+
+# Function to handle save button click
+def on_save(button):
+    with output:
+        output.clear_output(wait=True)
+        if username_widget.value.strip() and password_widget.value.strip():
+            user_info['username'] = username_widget.value.strip()
+            user_info['password'] = password_widget.value.strip()
+            display(HTML("<p style='color:green;'>Changes saved successfully!</p>"))
+            # Update widgets to reflect saved values
+            username_widget.value = user_info['username']
+            password_widget.value = user_info['password']
+            time.sleep(2)  # Optional: pause to show message
+            output.clear_output()
+        else:
+            display(HTML("<p style='color:red;'>Username and password cannot be empty.</p>"))
+
+save_button.on_click(on_save)
+
+# Display the interface
+display(HTML("<h2>Account Page</h2>"))
+display(username_widget)
+display(password_widget)
+display(registration_code_widget)
+display(save_button)
+display(output)
