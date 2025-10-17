@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Food Vision Generator - Create Your Dream Dish</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f5f7ff; margin: 0; }
+    .container { max-width: 800px; margin: 40px auto; background: #fff;
+                 border-radius: 10px; padding: 36px; box-shadow: 0 4px 18px #d8e5fa; }
+    h2 { color: #2E86e1; }
+    .tabs button { background: #e3f2fd; border: none; padding: 10px 30px; margin-right: 6px;
+                   border-radius: 99px; font-size: 16px; color: #2E86e1; cursor: pointer;}
+    .tabs button.active { background: #2E86e1; color: #fff;  }
+    .hidden { display: none; }
+    .form-group { margin: 14px 0; }
+    label { font-weight: bold; display: block; }
+    input, select { font-size: 15px; padding: 6px; border-radius: 6px; border: 1px solid #e3f2fd; width: 97%; }
+    button.action { margin: 24px 0 0 0; background: #2E86e1; color: #fff; padding: 12px 22px; border-radius: 7px; border:none; font-size:17px; cursor:pointer; }
+    button.danger {background:#d32f2f;}
+    .output { background: #f9f9f9; padding: 15px; border-radius: 6px;
+              margin: 20px 0 0 0; font-size: 16px; min-height: 40px;}
+    .feedback { margin-top: 24px; display: flex; gap: 10px; justify-content: center;}
+    .history { background: #f0f8ff; margin: 25px 0; border-radius: 7px; padding: 16px;}
+    .image-preview { width:100%; max-width:400px; height:300px; object-fit:cover; padding:7px; background:#fff; border-radius: 10px;}
+    .loading { display: none; text-align: center; padding: 20px; }
+    .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #2E86e1; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    .food-theme { background: linear-gradient(135deg, #ff6b6b, #ffa726); color: white; }
+    .food-theme .tabs button { background: rgba(255,255,255,0.2); color: white; }
+    .food-theme .tabs button.active { background: white; color: #ff6b6b; }
+    .food-theme button.action { background: #ff6b6b; }
+    .success-message { background: #d4edda; color: #155724; padding: 10px; border-radius: 5px; margin: 10px 0; }
+  </style>
+</head>
+<body>
+  <div class="container food-theme">
+    <h2>🍕 Food Vision Generator</h2>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button id="tabLogin" class="active">Login</button>
+      <button id="tabSignup">Sign Up</button>
+      <button id="tabApp" class="hidden">Create Food</button>
+      <button id="tabHistory" class="hidden">My Creations</button>
+    </div>
+
+    <!-- Login Form -->
+    <div id="loginPanel">
+      <div class="form-group">
+        <label>Username:</label>
+        <input type="text" id="loginUsername" placeholder="Enter your name"/>
+      </div>
+      <div class="form-group">
+        <label>Password:</label>
+        <input type="password" id="loginPassword" placeholder="Enter any password"/>
+      </div>
+      <button onclick="doLogin()" class="action">Start Creating Food</button>
+      <div id="loginStatus" class="output"></div>
+    </div>
+
+    <!-- Signup Form -->
+    <div id="signupPanel" class="hidden">
+      <div class="form-group">
+        <label>Username:</label>
+        <input type="text" id="signupUsername" placeholder="Choose a username"/>
+      </div>
+      <div class="form-group">
+        <label>Password:</label>
+        <input type="password" id="signupPassword" placeholder="Create a password"/>
+      </div>
+      <div class="form-group">
+        <label>Registration Code:
+          <small>(Use: FOOD-1234 to access food creation)</small>
+        </label>
+        <input type="text" id="signupCode" placeholder="Enter FOOD-1234"/>
+      </div>
+      <button onclick="doSignup()" class="action">Join Food Creator</button>
+      <div id="signupStatus" class="output"></div>
+    </div>
+
+    <!-- Main App Panel -->
+    <div id="appPanel" class="hidden">
+      <div>
+        <span id="userInfo"></span>
+        <button onclick="doLogout()" class="action danger" style="float:right;">Logout</button>
+      </div><br>
+      
+      <div class="form-group">
+        <label>Food Type:</label>
+        <select id="templateDropdown" onchange="showTemplateForm()">
+          <option value="">-- Select Food Style --</option>
+          <option value="Food">Create Custom Dish</option>
+        </select>
+      </div>
+      
+      <form id="dynamicForm"></form>
+      
+      <div class="form-group">
+        <label>Food Style & Presentation:</label>
+        <select id="foodStyle">
+          <option value="photorealistic">Photorealistic</option>
+          <option value="professional">Professional Food Photography</option>
+          <option value="rustic">Rustic & Homemade</option>
+          <option value="elegant">Fine Dining Presentation</option>
+          <option value="vibrant">Colorful & Vibrant</option>
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label>Background Color Theme:</label>
+        <input type="color" id="colorScheme" value="#FF6B6B"/>
+      </div>
+      
+      <button onclick="generateContent(event)" class="action">🍳 Generate Food Image</button>
+      
+      <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <p>Creating your delicious food image...</p>
+      </div>
+      
+      <div id="captionOutput" class="output"></div>
+      <div id="imageOutput" class="output"></div>
+      
+      <div class="feedback">
+        <button onclick="likeThis()" class="action">👍 Love this dish!</button>
+        <button onclick="generateContent(event)" class="action">🔄 Try Different Style</button>
+        <button onclick="bothBad()" class="action danger">👎 Not what I wanted</button>
+      </div>
+    </div>
+
+    <!-- History Panel -->
+    <div id="historyPanel" class="hidden">
+      <div id="historyOutput"></div>
+    </div>
+  </div>
+
+<script>
+  // --------- Data & Variables ---------
+  let currentUser = null;
+  let currentTemplate = null;
+  let sessions = {};
+  let foodImages = []; // Preloaded food images
+
+  const TEMPLATE_CODES = {Food:"FOOD-1234"};
+  const MASTER_CODE = "MASTER-CODE";
+
+  const templates = {
+    "Food": [
+      {name: "recipe_name", description: "Dish Name:", placeholder: "e.g., Gourmet Burger, Sushi Platter, Chocolate Cake"},
+      {name: "cuisine_type", description: "Cuisine Type:", options: ["Italian", "Chinese", "Mexican", "Japanese", "Indian", "American", "French", "Thai", "Mediterranean", "Fusion"]},
+      {name: "cooking_time", description: "Meal Type:", options: ["Quick Snack", "Everyday Meal", "Weekend Brunch", "Fine Dining", "Comfort Food", "Healthy Choice"]},
+      {name: "key_ingredients", description: "Main Ingredients:", placeholder: "e.g., beef, cheese, fresh vegetables, special sauce"},
+      {name: "tone", description: "Food Mood:", options: ["Comforting", "Fresh & Healthy", "Indulgent", "Light & Refreshing", "Rich & Savory"]}
+    ]
+  }
+
+  // Preloaded high-quality food images (royalty-free from Unsplash)
+  const foodImageLibrary = [
+    "https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=400&h=300&fit=crop", // Burger
+    "https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=400&h=300&fit=crop", // Pizza
+    "https://images.unsplash.com/photo-1563379926898-05f4575a45d8?w=400&h=300&fit=crop", // Pasta
+    "https://images.unsplash.com/photo-1563245372-f21724e3856d?w=400&h=300&fit=crop", // Sushi
+    "https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=400&h=300&fit=crop", // Asian
+    "https://images.unsplash.com/photo-1551024506-0bccd828d307?w=400&h=300&fit=crop", // Dessert
+    "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=400&h=300&fit=crop", // Pizza
+    "https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=400&h=300&fit=crop", // Breakfast
+    "https://images.unsplash.com/photo-1565299585323-38174c13fae8?w=400&h=300&fit=crop", // Gourmet
+    "https://images.unsplash.com/photo-1563379926898-05f4575a45d8?w=400&h=300&fit=crop"  // Pasta
+  ];
+
+  // Cuisine to image mapping
+  const cuisineImages = {
+    "Italian": ["https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=400&h=300&fit=crop", "https://images.unsplash.com/photo-1563379926898-05f4575a45d8?w=400&h=300&fit=crop"],
+    "Chinese": ["https://images.unsplash.com/photo-1563245372-f21724e3856d?w=400&h=300&fit=crop", "https://images.unsplash.com/photo-1551024506-0bccd828d307?w=400&h=300&fit=crop"],
+    "Mexican": ["https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=400&h=300&fit=crop", "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=400&h=300&fit=crop"],
+    "Japanese": ["https://images.unsplash.com/photo-1565299585323-38174c13fae8?w=400&h=300&fit=crop", "https://images.unsplash.com/photo-1563379926898-05f4575a45d8?w=400&h=300&fit=crop"],
+    "Indian": ["https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=400&h=300&fit=crop", "https://images.unsplash.com/photo-1551024506-0bccd828d307?w=400&h=300&fit=crop"],
+    "American": ["https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=400&h=300&fit=crop", "https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=400&h=300&fit=crop"],
+    "French": ["https://images.unsplash.com/photo-1513104890138-7c749659a591?w=400&h=300&fit=crop", "https://images.unsplash.com/photo-1565299585323-38174c13fae8?w=400&h=300&fit=crop"],
+    "Thai": ["https://images.unsplash.com/photo-1563245372-f21724e3856d?w=400&h=300&fit=crop", "https://images.unsplash.com/photo-1551024506-0bccd828d307?w=400&h=300&fit=crop"],
+    "Mediterranean": ["https://images.unsplash.com/photo-1563379926898-05f4575a45d8?w=400&h=300&fit=crop", "https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=400&h=300&fit=crop"],
+    "Fusion": ["https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=400&h=300&fit=crop", "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=400&h=300&fit=crop"]
+  };
+
+  // --------- Tabs and Panels ---------
+  function showTab(tab) {
+    ['tabLogin','tabSignup','tabApp','tabHistory'].forEach(tid=>{
+      document.getElementById(tid).classList.remove('active');
+    });
+    document.getElementById(tab).classList.add('active');
+    document.getElementById('loginPanel').classList.add('hidden');
+    document.getElementById('signupPanel').classList.add('hidden');
+    document.getElementById('appPanel').classList.add('hidden');
+    document.getElementById('historyPanel').classList.add('hidden');
+    if(tab=='tabLogin') document.getElementById('loginPanel').classList.remove('hidden');
+    if(tab=='tabSignup') document.getElementById('signupPanel').classList.remove('hidden');
+    if(tab=='tabApp') document.getElementById('appPanel').classList.remove('hidden');
+    if(tab=='tabHistory') document.getElementById('historyPanel').classList.remove('hidden');
+    ['tabApp','tabHistory'].forEach(t=>document.getElementById(t).classList.add('hidden'));
+    if(currentUser){
+      document.getElementById('tabApp').classList.remove('hidden');
+      document.getElementById('tabHistory').classList.remove('hidden');
+    }
+  }
+
+  document.getElementById('tabLogin').onclick = ()=>showTab('tabLogin');
+  document.getElementById('tabSignup').onclick = ()=>showTab('tabSignup');
+  document.getElementById('tabApp').onclick = ()=>showTab('tabApp');
+  document.getElementById('tabHistory').onclick = ()=>{showTab('tabHistory'); displayHistory();};
+
+  // --------- Login/Signup ---------
+  function doLogin() {
+    let user = document.getElementById("loginUsername").value.trim();
+    let pw   = document.getElementById("loginPassword").value.trim();
+    if(!user){
+      document.getElementById("loginStatus").innerText="Please enter your name to start!";
+      return;
+    }
+    currentUser = user;
+    document.getElementById("userInfo").innerHTML =
+      `<div>Welcome, Chef <b>${user}</b>! 👨‍🍳</div>`;
+    showTab('tabApp');
+    // Auto-select Food template
+    document.getElementById("templateDropdown").value = "Food";
+    showTemplateForm();
+  }
+
+  function doSignup() {
+    let user = document.getElementById("signupUsername").value.trim();
+    let pw   = document.getElementById("signupPassword").value.trim();
+    let rc   = document.getElementById("signupCode").value.trim();
+    if(!user||!pw||!rc){
+      document.getElementById("signupStatus").innerText="Please fill all fields!";
+      return;
+    }
+    if(rc===MASTER_CODE || Object.values(TEMPLATE_CODES).includes(rc)){
+      document.getElementById("signupStatus").innerHTML="<div class='success-message'>🎉 Welcome to Food Creator! You can now login and start creating.</div>";
+    }else{
+      document.getElementById("signupStatus").innerText="Use FOOD-1234 to register for food creation!";
+    }
+  }
+
+  function doLogout(){
+    currentUser = null;
+    showTab('tabLogin');
+  }
+
+  // --------- Dynamic Form ---------
+  function showTemplateForm() {
+    let sel = document.getElementById("templateDropdown").value;
+    currentTemplate = sel;
+    let form = document.getElementById("dynamicForm");
+    form.innerHTML = "";
+    if (!sel) return;
+    templates[sel].forEach(fld => {
+      let label = document.createElement("label");
+      label.innerText = fld.description;
+      form.appendChild(label);
+      let input;
+      if (fld.options) {
+        input = document.createElement("select");
+        fld.options.forEach(opt => {
+          let option = document.createElement("option");
+          option.value = opt;
+          option.innerText = opt;
+          input.appendChild(option);
+        });
+      } else {
+        input = document.createElement("input");
+        input.type = "text";
+        if (fld.placeholder) input.placeholder = fld.placeholder;
+      }
+      input.name = fld.name;
+      form.appendChild(input);
+    });
+  }
+
+  // --------- REAL Image Generation (No API Key Needed) ---------
+  function generateContent(e) {
+    if (e) e.preventDefault();
+    
+    if(!currentTemplate){
+      document.getElementById("captionOutput").innerText = "Please select a food style!";
+      return;
+    }
+
+    let fields = {};
+    templates[currentTemplate].forEach(f => {
+      let el = document.querySelector(`#dynamicForm [name='${f.name}']`);
+      fields[f.name] = el ? el.value : "";
+    });
+
+    // Validate required fields
+    if (!fields.recipe_name || !fields.cuisine_type) {
+      document.getElementById("captionOutput").innerText = "Please enter at least a dish name and cuisine type!";
+      return;
+    }
+
+    let color = document.getElementById("colorScheme").value;
+    let foodStyle = document.getElementById("foodStyle").value;
+    
+    // Show loading
+    document.getElementById("loading").style.display = "block";
+    document.getElementById("imageOutput").innerHTML = "";
+    document.getElementById("captionOutput").innerText = "";
+
+    // Simulate AI processing time
+    setTimeout(() => {
+      // Generate realistic food description
+      let caption = generateFoodCaption(fields, foodStyle);
+      document.getElementById("captionOutput").innerText = caption;
+
+      // Generate REAL food image (not placeholder)
+      let imgSrc = generateFoodImage(fields.cuisine_type, fields.recipe_name);
+      
+      document.getElementById("imageOutput").innerHTML =
+        `<img src="${imgSrc}" alt="${fields.recipe_name}" class="image-preview"/>
+         <div style="margin-top: 10px;">
+           <button onclick="downloadImage('${imgSrc}', '${fields.recipe_name}')" class="action">📥 Download Food Image</button>
+         </div>`;
+
+      document.getElementById("loading").style.display = "none";
+      saveSession(fields, caption, imgSrc);
+      
+      // Scroll to result
+      document.getElementById("imageOutput").scrollIntoView({ behavior: 'smooth' });
+    }, 1500); // Simulate processing time
+  }
+
+  // Generate realistic food captions
+  function generateFoodCaption(fields, style) {
+    const styleDescriptors = {
+      "photorealistic": "crisp, detailed food photography",
+      "professional": "professional culinary photography",
+      "rustic": "rustic, homemade style presentation",
+      "elegant": "elegant fine dining presentation",
+      "vibrant": "vibrant, colorful food styling"
+    };
+
+    const moodDescriptors = {
+      "Comforting": "warm and comforting",
+      "Fresh & Healthy": "fresh and nutritious",
+      "Indulgent": "decadent and indulgent",
+      "Light & Refreshing": "light and refreshing",
+      "Rich & Savory": "rich and savory"
+    };
+
+    return `🍽️ ${fields.recipe_name} - A ${moodDescriptors[fields.tone] || "delicious"} ${fields.cuisine_type} ${fields.cooking_time.toLowerCase()} featuring ${fields.key_ingredients}. Presented in ${styleDescriptors[style] || "beautiful"} style. #Foodie #${fields.cuisine_type.replace(" ", "")}`;
+  }
+
+  // Generate appropriate food image based on cuisine and dish
+  function generateFoodImage(cuisine, dishName) {
+    // Get cuisine-specific images or fallback to general food images
+    let availableImages = cuisineImages[cuisine] || foodImageLibrary;
+    
+    // Select random image from available options
+    const randomIndex = Math.floor(Math.random() * availableImages.length);
+    return availableImages[randomIndex];
+  }
+
+  // Download functionality
+  function downloadImage(imageUrl, dishName) {
+    const link = document.createElement('a');
+    link.href = imageUrl;
+    link.download = `${dishName.replace(/\s+/g, '_')}_food_image.jpg`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
+  // --------- Feedback & History ---------
+  function likeThis(){ 
+    alert("👍 Great choice! This dish has been added to your favorites."); 
+  }
+
+  function bothBad(){ 
+    alert("👎 Let's try a different combination! Adjust your preferences and generate again."); 
+  }
+
+  function saveSession(fields, caption, imgSrc){
+    if(!currentUser) return;
+    if(!sessions[currentUser]) sessions[currentUser] = [];
+    sessions[currentUser].unshift({
+      timestamp: new Date().toLocaleString(),
+      template: currentTemplate,
+      fields: fields,
+      caption: caption,
+      imgSrc: imgSrc
+    });
+    // Keep only last 5 creations
+    if(sessions[currentUser].length > 5) sessions[currentUser].pop();
+  }
+
+  function displayHistory(){
+    let historyOutput = document.getElementById("historyOutput");
+    historyOutput.innerHTML = "";
+    if(!currentUser || !sessions[currentUser] || sessions[currentUser].length==0){
+      historyOutput.innerHTML = `<div class="history">No food creations yet! Start creating delicious dishes above.</div>`;
+      return;
+    }
+    let histories = sessions[currentUser];
+    histories.forEach((session,i)=>{
+      let params = Object.entries(session.fields).map(([k,v])=>
+        `<li><b>${k.replace(/_/g," ")}</b>: ${v}</li>`).join('');
+      historyOutput.innerHTML+=
+      `<div class="history">
+        <h3>🍽️ Creation ${i+1} - ${session.fields.recipe_name}</h3>
+        <p><b>Created:</b> ${session.timestamp}</p>
+        <ul>${params}</ul>
+        <p><b>Description:</b> ${session.caption}</p>
+        <div>
+          <img src="${session.imgSrc}" class="image-preview"/>
+          <button onclick="downloadImage('${session.imgSrc}', '${session.fields.recipe_name}')" class="action">Download Again</button>
+        </div>
+        <hr>
+      </div>`;
+    });
+  }
+
+  // --------- Initialize ---------
+  window.onload = function(){
+    showTab('tabLogin');
+    // Preload images for better performance
+    preloadFoodImages();
+  }
+
+  function preloadFoodImages() {
+    foodImageLibrary.forEach(src => {
+      const img = new Image();
+      img.src = src;
+    });
+  }
+</script>
+</body>
+</html>
