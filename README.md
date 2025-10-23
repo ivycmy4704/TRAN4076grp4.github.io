@@ -1,8 +1,8 @@
-# AuthImageSystem (HTML Version) - User Guide
+# Illustration Generator 1.0 (HTML Version) - User Guide
 
-Welcome to **AuthImageSystem**, a web-based tool for creating accounts, managing templates, and generating AI-powered images using Pollinations AI. This guide is designed for you, the website user, to understand how to use the application effectively.
+Welcome to **Illustration Generator 1.0**, a web-based tool for creating accounts, managing templates, and generating AI-powered images using Pollinations AI. This guide is designed for you, the website user, to understand how to use the application effectively.
 
-## What is AuthImageSystem?
+## What is Illustration Generator?
 
 This tool lets you:
 - **Sign up** or **log in** to a secure account with a master or client role.
@@ -89,4 +89,4 @@ Your data is stored securely in your browser, and images are created using an ex
 - Contact your administrator for industry codes or template details.
 - For technical issues, report bugs via the GitHub repository (if available).
 
-Enjoy creating stunning images with Illustration Generator 1.0.html!
+Enjoy creating stunning images with Illustration Generator 1.0!
