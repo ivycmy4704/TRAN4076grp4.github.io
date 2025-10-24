@@ -160,6 +160,51 @@ class UserManager:
         """Get templates matching an industry code"""
         return {tid: t for tid, t in self.templates.items() if t['industry_code'] == industry_code}
 
+# History Manager
+class HistoryManager:
+    HISTORY_FILE = "image_history.json"
+    MAX_HISTORY = 3  # Keep only last 3 runs per user
+
+    def __init__(self):
+        self.history = {}
+        self.load_history()
+
+    def load_history(self):
+        """Load history from file"""
+        if os.path.exists(self.HISTORY_FILE):
+            try:
+                with open(self.HISTORY_FILE, 'r') as f:
+                    self.history = json.load(f)
+            except:
+                self.history = {}
+
+    def save_history(self):
+        """Save history to file"""
+        with open(self.HISTORY_FILE, 'w') as f:
+            json.dump(self.history, f)
+
+    def record_session(self, username, session_data):
+        """Record a session to user's history"""
+        if username not in self.history:
+            self.history[username] = []
+        
+        # Convert images to base64 for storage
+        session_data['images'] = [
+            base64.b64encode(img).decode('utf-8') if img else None
+            for img in session_data['images']
+        ]
+        
+        # Add to history and keep only last MAX_HISTORY
+        self.history[username].append(session_data)
+        if len(self.history[username]) > self.MAX_HISTORY:
+            self.history[username] = self.history[username][-self.MAX_HISTORY:]
+        
+        self.save_history()
+
+    def get_user_history(self, username):
+        """Get history for a specific user"""
+        return self.history.get(username, [])
+
 # Image generation functions
 def generate_two_images(subject, style="professional photography"):
     """
@@ -196,6 +241,7 @@ input_width = '90%'
 class AuthImageSystem:
     def __init__(self):
         self.user_manager = UserManager()
+        self.history_manager = HistoryManager()
         self.create_widgets()
         # State for image feedback system
         self.current_images = []
@@ -285,6 +331,14 @@ class AuthImageSystem:
             icon='sign-out',
             layout=widgets.Layout(width='100px', margin='20px 0 0 auto')
         )
+        
+        # History Widgets
+        self.history_output = widgets.Output()
+        self.refresh_history_btn = widgets.Button(
+            description="Refresh History",
+            button_style='info',
+            layout=widgets.Layout(width='150px')
+        )
 
         # Attach handlers
         self.signup_btn.on_click(self.on_signup)
@@ -297,6 +351,7 @@ class AuthImageSystem:
         self.like_this_btn.on_click(self.on_like_this)
         self.like_that_btn.on_click(self.on_like_that)
         self.both_bad_btn.on_click(self.on_both_bad)
+        self.refresh_history_btn.on_click(self.display_history)
 
     def update_template_dropdown(self, change):
         """Update template dropdown based on industry code"""
@@ -434,6 +489,16 @@ class AuthImageSystem:
         images = generate_two_images(self.current_subject, self.current_style)
         self.current_images = images  # Store for download
         
+        # Record session in history
+        if self.user_manager.current_user and any(images):
+            session_data = {
+                "subject": self.current_subject,
+                "style": self.current_style,
+                "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "images": images
+            }
+            self.history_manager.record_session(self.user_manager.current_user, session_data)
+        
         with self.image_output:
             self.image_output.clear_output()
             
@@ -514,6 +579,57 @@ class AuthImageSystem:
         
         self.generate_and_display_images()
 
+    def display_history(self, btn=None):
+        """Display the history of generated images for current user"""
+        self.history_output.clear_output()
+        with self.history_output:
+            if not self.user_manager.current_user:
+                display(HTML("<div style='color:red;padding:10px'>Not logged in</div>"))
+                return
+                
+            username = self.user_manager.current_user
+            user_history = self.history_manager.get_user_history(username)
+            
+            if not user_history:
+                display(HTML("<div style='padding:10px'>No history found. Generate some images first!</div>"))
+                return
+                
+            display(HTML(f"<h3>History for {username}</h3>"))
+            display(HTML(f"<p>Showing last {self.history_manager.MAX_HISTORY} sessions</p>"))
+            
+            # Display sessions in reverse chronological order (newest first)
+            for i, session in enumerate(reversed(user_history)):
+                display(HTML(f"<hr><h4>Session {i+1}: {session['timestamp']}</h4>"))
+                display(HTML(f"<p><b>Subject:</b> {session['subject']}</p>"))
+                display(HTML(f"<p><b>Style:</b> {session['style']}</p>"))
+                
+                # Display images with download buttons
+                image_widgets = []
+                for j, img_base64 in enumerate(session['images']):
+                    if img_base64:
+                        try:
+                            img_bytes = base64.b64decode(img_base64)
+                            img_widget = widgets.Image(value=img_bytes, format='png', width=200, height=200)
+                            download_btn = widgets.Button(description=f"Download Image {j+1}")
+                            download_btn.on_click(lambda b, img=img_bytes, subj=session['subject'], idx=j+1: 
+                                                self.download_history_image(img, f"{subj.replace(' ', '_')}_{idx}.png"))
+                            image_widgets.append(widgets.VBox([img_widget, download_btn]))
+                        except:
+                            continue
+                if image_widgets:
+                    display(widgets.HBox(image_widgets))
+                else:
+                    display(HTML("<div>No images available for this session</div>"))
+
+    def download_history_image(self, img_bytes, filename):
+        """Create download link for history image"""
+        html = self.download_image(img_bytes, filename)
+        with self.history_output:
+            self.history_output.clear_output(wait=True)
+            display(HTML(f"<div style='color:green;padding:10px'>{html}</div>"))
+            # Refresh history view after download
+            self.display_history()
+
     def show_signup_form(self):
         return widgets.VBox([
             widgets.HTML("<h2 style='color:#2E86e1; margin-top:0'>📝 Sign Up</h2>"),
@@ -564,7 +680,16 @@ class AuthImageSystem:
             self.image_style,
             self.generate_btn,
             self.image_output,
-            self.feedback_status  # Added feedback status area
+            self.feedback_status
+        ])
+    
+    def show_history_tab(self):
+        """Show history tab content"""
+        return widgets.VBox([
+            widgets.HTML("<h2 style='color:#2E86e1; margin-top:0'>📚 Past Records</h2>"),
+            widgets.HTML("<p>Your last 3 image generation sessions</p>"),
+            self.refresh_history_btn,
+            self.history_output
         ])
 
     def update_template_delete_dropdown(self):
@@ -585,11 +710,21 @@ class AuthImageSystem:
         
         if self.user_manager.current_role == "master":
             tabs = widgets.Tab()
-            tabs.children = [self.show_image_gen_form(), self.show_template_management_form()]
-            tabs.titles = ['Image Generator', 'Template Management']
+            tabs.children = [
+                self.show_image_gen_form(), 
+                self.show_template_management_form(),
+                self.show_history_tab()
+            ]
+            tabs.titles = ['Image Generator', 'Template Management', 'Past Records']
             return widgets.VBox([header, tabs])
         else:
-            return widgets.VBox([header, self.show_image_gen_form()])
+            tabs = widgets.Tab()
+            tabs.children = [
+                self.show_image_gen_form(),
+                self.show_history_tab()
+            ]
+            tabs.titles = ['Image Generator', 'Past Records']
+            return widgets.VBox([header, tabs])
 
     def show_auth_ui(self):
         """Display authentication UI with signup and login tabs"""
