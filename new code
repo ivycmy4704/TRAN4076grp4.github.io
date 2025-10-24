@@ -160,6 +160,39 @@ class UserManager:
         """Get templates matching an industry code"""
         return {tid: t for tid, t in self.templates.items() if t['industry_code'] == industry_code}
 
+    def update_user(self, username, current_password, new_industry_code=None, new_template_id=None, new_password=None):
+        """Update user account information"""
+        if username not in self.users:
+            return False, "User not found"
+        
+        # Verify current password
+        user = self.users[username]
+        salt = bytes.fromhex(user['salt'])
+        hashed_pw = hashlib.pbkdf2_hmac('sha256', current_password.encode(), salt, 100000)
+        
+        if hashed_pw.hex() != user['password']:
+            return False, "Current password is incorrect"
+        
+        # Update industry code if provided
+        if new_industry_code is not None:
+            user['industry_code'] = new_industry_code
+        
+        # Update template if provided
+        if new_template_id is not None:
+            if new_template_id and new_template_id not in self.templates:
+                return False, "Invalid template ID"
+            user['template_id'] = new_template_id
+        
+        # Update password if provided
+        if new_password:
+            new_salt = os.urandom(16)
+            new_hashed_pw = hashlib.pbkdf2_hmac('sha256', new_password.encode(), new_salt, 100000)
+            user['password'] = new_hashed_pw.hex()
+            user['salt'] = new_salt.hex()
+        
+        self.save_users()
+        return True, "Account updated successfully"
+
 # History Manager
 class HistoryManager:
     HISTORY_FILE = "image_history.json"
@@ -339,6 +372,26 @@ class AuthImageSystem:
             button_style='info',
             layout=widgets.Layout(width='150px')
         )
+        
+        # Account Management Widgets
+        self.account_username = widgets.Text(
+            description="Username:", style=form_style, layout=widgets.Layout(width=input_width),
+            disabled=True)
+        self.account_industry_code = widgets.Text(
+            description="Industry Code:", style=form_style, layout=widgets.Layout(width=input_width))
+        self.account_template_dropdown = widgets.Dropdown(
+            description="Template:", style=form_style, layout=widgets.Layout(width=input_width),
+            options=[("None", None)], disabled=False)
+        self.current_password = widgets.Password(
+            description="Current Password:", style=form_style, layout=widgets.Layout(width=input_width))
+        self.new_password = widgets.Password(
+            description="New Password:", style=form_style, layout=widgets.Layout(width=input_width),
+            placeholder="Leave blank to keep current")
+        self.confirm_password = widgets.Password(
+            description="Confirm Password:", style=form_style, layout=widgets.Layout(width=input_width))
+        self.update_account_btn = widgets.Button(
+            description="Update Account", button_style='primary', layout=widgets.Layout(width='200px'))
+        self.account_status = widgets.Output()
 
         # Attach handlers
         self.signup_btn.on_click(self.on_signup)
@@ -352,6 +405,8 @@ class AuthImageSystem:
         self.like_that_btn.on_click(self.on_like_that)
         self.both_bad_btn.on_click(self.on_both_bad)
         self.refresh_history_btn.on_click(self.display_history)
+        self.account_industry_code.observe(self.update_account_template_dropdown, names='value')
+        self.update_account_btn.on_click(self.on_account_update)
 
     def update_template_dropdown(self, change):
         """Update template dropdown based on industry code"""
@@ -360,6 +415,14 @@ class AuthImageSystem:
         options = [("None", None)] + [(t['name'], tid) for tid, t in templates.items()]
         self.template_dropdown.options = options
         self.template_dropdown.disabled = not bool(templates)
+        
+    def update_account_template_dropdown(self, change):
+        """Update account template dropdown based on industry code"""
+        industry_code = change['new'].strip()
+        templates = self.user_manager.get_templates_by_industry(industry_code)
+        options = [("None", None)] + [(t['name'], tid) for tid, t in templates.items()]
+        self.account_template_dropdown.options = options
+        self.account_template_dropdown.disabled = not bool(templates)
 
     def on_signup(self, btn):
         username = self.signup_username.value.strip()
@@ -441,6 +504,7 @@ class AuthImageSystem:
             color = "green" if success else "red"
             display(HTML(f"<div style='color:{color};padding:10px'>{message}</div>"))
         self.update_template_delete_dropdown()
+        self.update_account_template_dropdown({'new': self.account_industry_code.value})
 
     def on_delete_template(self, btn):
         if self.user_manager.current_role != "master":
@@ -462,6 +526,7 @@ class AuthImageSystem:
             color = "green" if success else "red"
             display(HTML(f"<div style='color:{color};padding:10px'>{message}</div>"))
         self.update_template_delete_dropdown()
+        self.update_account_template_dropdown({'new': self.account_industry_code.value})
 
     def on_generate(self, btn):
         subject = self.image_subject.value.strip()
@@ -629,6 +694,63 @@ class AuthImageSystem:
             display(HTML(f"<div style='color:green;padding:10px'>{html}</div>"))
             # Refresh history view after download
             self.display_history()
+            
+    def on_account_update(self, btn):
+        """Handle account update request"""
+        if not self.user_manager.current_user:
+            with self.account_status:
+                self.account_status.clear_output()
+                display(HTML("<div style='color:red;padding:10px'>Not logged in</div>"))
+            return
+            
+        username = self.user_manager.current_user
+        current_password = self.current_password.value.strip()
+        new_industry_code = self.account_industry_code.value.strip()
+        new_template_id = self.account_template_dropdown.value
+        new_password = self.new_password.value.strip()
+        confirm_password = self.confirm_password.value.strip()
+        
+        # Validate inputs
+        if not current_password:
+            with self.account_status:
+                self.account_status.clear_output()
+                display(HTML("<div style='color:red;padding:10px'>Current password is required</div>"))
+            return
+            
+        if new_password and new_password != confirm_password:
+            with self.account_status:
+                self.account_status.clear_output()
+                display(HTML("<div style='color:red;padding:10px'>New passwords do not match</div>"))
+            return
+            
+        if not new_industry_code:
+            with self.account_status:
+                self.account_status.clear_output()
+                display(HTML("<div style='color:red;padding:10px'>Industry code is required</div>"))
+            return
+            
+        # Update user account
+        success, message = self.user_manager.update_user(
+            username,
+            current_password,
+            new_industry_code,
+            new_template_id,
+            new_password if new_password else None
+        )
+        
+        with self.account_status:
+            self.account_status.clear_output()
+            color = "green" if success else "red"
+            display(HTML(f"<div style='color:{color};padding:10px'>{message}</div>"))
+            
+        # Clear password fields
+        self.current_password.value = ""
+        self.new_password.value = ""
+        self.confirm_password.value = ""
+        
+        # Update template dropdowns
+        self.update_template_dropdown({'new': new_industry_code})
+        self.update_account_template_dropdown({'new': new_industry_code})
 
     def show_signup_form(self):
         return widgets.VBox([
@@ -691,6 +813,39 @@ class AuthImageSystem:
             self.refresh_history_btn,
             self.history_output
         ])
+        
+    def show_account_page(self):
+        """Show account management page"""
+        if not self.user_manager.current_user:
+            return widgets.VBox([
+                widgets.HTML("<h2 style='color:#2E86e1; margin-top:0'>🔐 Account</h2>"),
+                widgets.HTML("<div style='color:red;padding:10px'>Not logged in</div>")
+            ])
+            
+        user = self.user_manager.users[self.user_manager.current_user]
+        
+        # Pre-populate fields
+        self.account_username.value = self.user_manager.current_user
+        self.account_industry_code.value = user['industry_code']
+        self.account_template_dropdown.value = user.get('template_id', None)
+        
+        # Update template dropdown based on industry code
+        self.update_account_template_dropdown({'new': user['industry_code']})
+        
+        return widgets.VBox([
+            widgets.HTML("<h2 style='color:#2E86e1; margin-top:0'>🔐 Account Management</h2>"),
+            widgets.HTML("<p>Update your account information</p>"),
+            self.account_username,
+            self.account_industry_code,
+            self.account_template_dropdown,
+            self.current_password,
+            self.new_password,
+            self.confirm_password,
+            widgets.HTML("<div style='font-size:12px; color:#666; margin-top:-10px'>"
+                         "Leave password fields unchanged to keep current password</div>"),
+            self.update_account_btn,
+            self.account_status
+        ])
 
     def update_template_delete_dropdown(self):
         """Update the delete template dropdown with current templates"""
@@ -713,17 +868,19 @@ class AuthImageSystem:
             tabs.children = [
                 self.show_image_gen_form(), 
                 self.show_template_management_form(),
-                self.show_history_tab()
+                self.show_history_tab(),
+                self.show_account_page()
             ]
-            tabs.titles = ['Image Generator', 'Template Management', 'Past Records']
+            tabs.titles = ['Image Generator', 'Template Management', 'Past Records', 'Account']
             return widgets.VBox([header, tabs])
         else:
             tabs = widgets.Tab()
             tabs.children = [
                 self.show_image_gen_form(),
-                self.show_history_tab()
+                self.show_history_tab(),
+                self.show_account_page()
             ]
-            tabs.titles = ['Image Generator', 'Past Records']
+            tabs.titles = ['Image Generator', 'Past Records', 'Account']
             return widgets.VBox([header, tabs])
 
     def show_auth_ui(self):
