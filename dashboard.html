@@ -3,64 +3,238 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Generate - ProGen AI</title>
-  <link rel="stylesheet" href="css/style.css" />
+  <title>ProGen AI - Generate</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+  <style>
+    :root { --primary: #4a90e2; --success: #7ed321; --secondary: #999; }
+    body { font-family: 'Segoe UI', sans-serif; background: #f8f9ff; margin: 0; color: #333; }
+    .navbar { background: #fff; padding: 1rem 2rem; box-shadow: 0 2px 10px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; }
+    .logo { font-weight: bold; font-size: 1.5rem; color: var(--primary); }
+    .container { max-width: 800px; margin: 2rem auto; padding: 0 1rem; }
+    .card { background: #fff; border-radius: 12px; padding: 2rem; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
+    .input-group { margin-bottom: 1.5rem; }
+    label { display: block; margin-bottom: 0.5rem; font-weight: 600; }
+    input[type="file"], textarea { width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; }
+    textarea { resize: vertical; min-height: 100px; }
+    .radio-group { display: flex; gap: 1rem; flex-wrap: wrap; }
+    .radio-group label { font-weight: normal; }
+    .btn-primary, .btn-success, .btn-secondary { padding: 0.75rem 1.5rem; border: none; border-radius: 8px; cursor: pointer; font-size: 1rem; margin: 0.5rem 0; }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-success { background: var(--success); color: white; }
+    .btn-secondary { background: #eee; color: #333; }
+    .btn-sm { padding: 0.5rem 1rem; font-size: 0.9rem; }
+    .preview-box { background: #f0f8ff; border: 1px solid #cce5ff; border-radius: 8px; padding: 1rem; margin: 1rem 0; }
+    .editable-preview { background: white; padding: 0.75rem; border-radius: 6px; margin: 0.5rem 0; min-height: 60px; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 1.5rem; }
+    .result-card { text-align: center; }
+    .result-card img { width: 100%; max-height: 400px; object-fit: cover; border-radius: 8px; margin-bottom: 0.75rem; }
+    .loading { text-align: center; color: #666; margin: 1rem 0; font-style: italic; }
+    .recommendation { background: #e8f5e8; padding: 1rem; border-radius: 8px; margin: 1rem 0; font-size: 0.95rem; }
+    #creditDisplay { font-weight: bold; color: var(--primary); }
+  </style>
 </head>
-<body class="bg-pastel">
+<body>
   <nav class="navbar">
     <div class="logo">ProGen AI</div>
     <div>
-      <span id="creditDisplay">Credits: 20</span> |
-      <a href="support.html">Support</a> |
-      <a href="#" onclick="logout()">Logout</a>
+      <span id="creditDisplay">Credits: 20</span>
     </div>
   </nav>
 
   <div class="container">
     <div class="card">
       <h2>Generate 2 Illustrations</h2>
-      <div id="creditWarning" class="alert" style="display:none;"></div>
 
-      <!-- Generator Choice -->
       <div class="input-group">
         <label>AI Generator</label>
         <div class="radio-group">
-          <label><input type="radio" name="generator" value="flux" checked> Flux Pro</label>
+          <label><input type="radio" name="generator" value="flux" checked> Flux Schnell</label>
           <label><input type="radio" name="generator" value="pollination"> Pollination.ai</label>
           <label><input type="radio" name="generator" value="stable"> Stable Diffusion XL</label>
         </div>
       </div>
 
-      <!-- Reference Image -->
       <div class="input-group">
         <label>Reference Image (Optional)</label>
         <input type="file" id="refImage" accept="image/*" />
         <div id="preview" class="image-preview"></div>
       </div>
 
-      <!-- Text Prompt -->
       <div class="input-group">
         <label>Describe Your Image</label>
         <textarea id="prompt" rows="4" placeholder="e.g., A minimalist skincare bottle with soft pastel background..."></textarea>
       </div>
 
-      <button class="btn-primary" onclick="generateImages()">Generate Preview</button>
+      <div id="recommendation" class="recommendation" style="display:none;"></div>
 
-      <!-- Preview Description (Free) -->
-      <div id="previewText" class="preview-box" style="display:none;"></div>
+      <button class="btn-primary" id="previewBtn">Generate Preview</button>
+      <div id="loadingMsg" class="loading" style="display:none;">Generating AI preview...</div>
 
-      <!-- Confirm Generation -->
-      <div id="confirmSection" style="display:none;">
-        <button class="btn-success" onclick="confirmGeneration()">Generate (2 credits)</button>
+      <div id="previewSection" style="display:none;">
+        <div class="preview-box">
+          <label>AI Preview:</label>
+          <div id="previewText" class="editable-preview"></div>
+          <label>Edit (Optional):</label>
+          <textarea id="editedPreview" rows="3"></textarea>
+        </div>
+        <button class="btn-success" onclick="confirmGeneration()">Generate Images (2 credits)</button>
         <button class="btn-secondary" onclick="cancelGeneration()">Cancel</button>
       </div>
 
-      <!-- Results -->
       <div id="results" class="grid-2" style="display:none;"></div>
     </div>
   </div>
 
-  <script src="js/generate.js"></script>
-  <script src="js/auth.js"></script>
+  <script>
+    let sessionId = localStorage.getItem('sessionId');
+    if (!sessionId) {
+      sessionId = Math.random().toString(36).substring(2);
+      localStorage.setItem('sessionId', sessionId);
+    }
+    let previewData = null;
+
+    // Load credits
+    async function loadCredits() {
+      const res = await fetch('/api/credits', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId })
+      });
+      const data = await res.json();
+      document.getElementById('creditDisplay').textContent = `Credits: ${data.credits}`;
+    }
+
+    // Reference Image Preview
+    document.getElementById('refImage').addEventListener('change', e => {
+      const file = e.target.files[0];
+      const div = document.getElementById('preview');
+      div.innerHTML = '';
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = ev => {
+          const img = document.createElement('img');
+          img.src = ev.target.result;
+          img.style.maxHeight = '150px';
+          img.style.borderRadius = '8px';
+          div.appendChild(img);
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+    // Generate Preview
+    async function generatePreview() {
+      const prompt = document.getElementById('prompt').value.trim();
+      if (!prompt) return alert('Enter a prompt.');
+
+      const generator = document.querySelector('input[name="generator"]:checked').value;
+      const btn = document.getElementById('previewBtn');
+      const loading = document.getElementById('loadingMsg');
+
+      btn.disabled = true;
+      btn.textContent = 'Generating...';
+      loading.style.display = 'block';
+
+      try {
+        const res = await fetch('/api/preview', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt, generator, sessionId })
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+
+        document.getElementById('previewText').textContent = data.preview;
+        document.getElementById('editedPreview').value = data.preview;
+        document.getElementById('previewSection').style.display = 'block';
+        previewData = { prompt, generator, aiPreview: data.preview };
+
+      } catch (err) {
+        if (err.message.includes('503')) {
+          alert('Model is loading. Please retry in 15s.');
+        } else {
+          alert('Preview failed: ' + err.message);
+        }
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Generate Preview';
+        loading.style.display = 'none';
+      }
+    }
+
+    // Confirm & Generate
+    async function confirmGeneration() {
+      const edited = document.getElementById('editedPreview').value.trim();
+      if (!edited) return alert('Confirm the preview.');
+
+      const form = new FormData();
+      form.append('prompt', previewData.prompt);
+      form.append('generator', previewData.generator);
+      form.append('aiPreview', edited);
+      form.append('sessionId', sessionId);
+
+      const refFile = document.getElementById('refImage').files[0];
+      if (refFile) form.append('refImage', refFile);
+
+      const btn = document.querySelector('.btn-success');
+      btn.disabled = true;
+      btn.textContent = 'Generating...';
+
+      try {
+        const resp = await fetch('/api/generate', {
+          method: 'POST',
+          body: form
+        });
+
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error);
+
+        const results = document.getElementById('results');
+        results.innerHTML = data.images.map((src, i) => `
+          <div class="result-card">
+            <img src="${src}" alt="Generated ${i+1}">
+            <button class="btn-sm btn-primary" onclick="downloadImage('${src}', ${i+1})">Download</button>
+          </div>
+        `).join('');
+        results.style.display = 'grid';
+        document.getElementById('previewSection').style.display = 'none';
+
+        loadCredits(); // Update credit display
+
+      } catch (err) {
+        if (err.message.includes('503')) {
+          alert('Model is loading. Retrying in 15s...');
+          setTimeout(confirmGeneration, 15000);
+        } else if (err.message.includes('Insufficient')) {
+          alert('Not enough credits! Need 2.');
+        } else {
+          alert('Generation failed: ' + err.message);
+        }
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Generate Images (2 credits)';
+      }
+    }
+
+    function downloadImage(dataUrl, num) {
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = `progen-ai-image-${num}.png`;
+      a.click();
+    }
+
+    function cancelGeneration() {
+      document.getElementById('previewSection').style.display = 'none';
+      document.getElementById('results').style.display = 'none';
+      previewData = null;
+    }
+
+    // Init
+    document.addEventListener('DOMContentLoaded', () => {
+      loadCredits();
+      document.getElementById('previewBtn').onclick = generatePreview;
+    });
+  </script>
 </body>
 </html>
