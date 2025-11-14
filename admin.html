@@ -5,38 +5,142 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Admin - ProGen AI</title>
   <link rel="stylesheet" href="css/style.css" />
+  <style>
+    /* ---- Simple modal styling (you can move this to style.css) ---- */
+    #adminModal {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.6); display: flex; align-items: center;
+      justify-content: center; z-index: 9999;
+    }
+    .modal-content {
+      background: #fff; padding: 2rem; border-radius: 8px; width: 320px;
+      box-shadow: 0 4px 12px rgba(0,0,0,.2);
+    }
+    .modal-content h3 { margin-top: 0; }
+    .modal-content .input-group { margin-bottom: 1rem; }
+    .modal-content label { display: block; margin-bottom: .4rem; font-weight: 600; }
+    .modal-content input { width: 100%; padding: .5rem; border: 1px solid #ccc; border-radius: 4px; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: .5rem; }
+    .modal-actions button { padding: .5rem 1rem; border: none; border-radius: 4px; cursor: pointer; }
+    .modal-actions .btn-primary { background: #0066cc; color:#fff; }
+    .modal-actions .btn-secondary { background: #ddd; }
+  </style>
 </head>
 <body>
-  <nav class="navbar">
-    <div class="logo">Admin Panel</div>
-    <div><a href="index.html">Logout</a></div>
-  </nav>
 
-  <div class="container">
-    <div class="card">
-      <h2>Manage Customers</h2>
-      <input type="text" id="search" placeholder="Search..." class="search-bar" oninput="renderUsers()" />
-
-      <table id="userTable" class="table">
-        <thead>
-          <tr>
-            <th>Company</th>
-            <th>Email</th>
-            <th>Industry</th>
-            <th>Credits</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </div>
-
-    <div class="card">
-      <h2>Support Tickets</h2>
-      <div id="tickets"></div>
+  <!-- ==== ADMIN LOGIN MODAL ==== -->
+  <div id="adminModal">
+    <div class="modal-content">
+      <h3>Admin Login</h3>
+      <form id="adminLoginForm">
+        <div class="input-group">
+          <label for="adminName">Admin Name</label>
+          <input type="text" id="adminName" required placeholder="Enter admin name" />
+        </div>
+        <div class="input-group">
+          <label for="adminPass">Password</label>
+          <input type="password" id="adminPass" required placeholder="Enter password" />
+        </div>
+        <div class="modal-actions">
+          <button type="button" id="cancelBtn" class="btn-secondary">Cancel</button>
+          <button type="submit" class="btn-primary">Login</button>
+        </div>
+      </form>
     </div>
   </div>
 
+  <!-- ==== MAIN ADMIN UI (hidden until logged in) ==== -->
+  <div id="adminPanel" style="display:none;">
+    <nav class="navbar">
+      <div class="logo">Admin Panel</div>
+      <div><a href="index.html" id="logoutLink">Logout</a></div>
+    </nav>
+
+    <div class="container">
+      <div class="card">
+        <h2>Manage Customers</h2>
+        <input type="text" id="search" placeholder="Search..." class="search-bar" oninput="renderUsers()" />
+
+        <table id="userTable" class="table">
+          <thead>
+            <tr>
+              <th>Company</th>
+              <th>Email</th>
+              <th>Industry</th>
+              <th>Credits</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h2>Support Tickets</h2>
+        <div id="tickets"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==== SCRIPTS ==== -->
+  <script>
+    // ---------- CONFIG ----------
+    const ADMIN_NAME = 'admin';          // CHANGE THIS
+    const ADMIN_PASS = 'admin001';    // CHANGE THIS (or move to server later)
+
+    // ---------- ELEMENTS ----------
+    const modal      = document.getElementById('adminModal');
+    const panel      = document.getElementById('adminPanel');
+    const form       = document.getElementById('adminLoginForm');
+    const cancelBtn  = document.getElementById('cancelBtn');
+    const logoutLink = document.getElementById('logoutLink');
+
+    // ---------- SESSION HELPERS ----------
+    const setAdminSession = () => sessionStorage.setItem('adminAuth', 'true');
+    const clearAdminSession = () => sessionStorage.removeItem('adminAuth');
+    const isAdminAuthenticated = () => sessionStorage.getItem('adminAuth') === 'true';
+
+    // ---------- AUTH CHECK ON LOAD ----------
+    if (isAdminAuthenticated()) {
+      modal.style.display = 'none';
+      panel.style.display = 'block';
+    }
+
+    // ---------- FORM SUBMIT ----------
+    form.addEventListener('submit', e => {
+      e.preventDefault();
+      const name = document.getElementById('adminName').value.trim();
+      const pass = document.getElementById('adminPass').value;
+
+      if (name === ADMIN_NAME && pass === ADMIN_PASS) {
+        setAdminSession();
+        modal.style.display = 'none';
+        panel.style.display = 'block';
+      } else {
+        alert('Invalid admin credentials');
+        document.getElementById('adminName').focus();
+      }
+    });
+
+    // ---------- CANCEL BUTTON ----------
+    cancelBtn.addEventListener('click', () => {
+      window.location.href = 'index.html';
+    });
+
+    // ---------- LOGOUT ----------
+    logoutLink.addEventListener('click', e => {
+      e.preventDefault();
+      clearAdminSession();
+      window.location.href = 'index.html';
+    });
+
+    // ---------- OPTIONAL: protect against direct navigation ----------
+    window.addEventListener('beforeunload', () => {
+      // nothing needed – sessionStorage lives only for the tab
+    });
+  </script>
+
+  <!-- Your existing admin scripts (they will run only after login) -->
   <script src="js/auth.js"></script>
   <script src="js/admin.js"></script>
 </body>
