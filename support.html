@@ -8,8 +8,6 @@
   <style>
     :root { --primary: #4a90e2; --success: #7ed321; --accent: #ff9800; --gray: #f0f2f5; }
     body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg, #f5f7ff 0%, #e8f0fe 100%); margin: 0; color: #333; min-height: 100vh; }
-
-    /* Navbar – identical to dashboard & add-credits */
     .navbar {
       background: rgba(255,255,255,0.98); backdrop-filter: blur(10px);
       padding: 1.2rem 3rem; box-shadow: 0 4px 20px rgba(0,0,0,0.08);
@@ -25,7 +23,6 @@
     .nav-right a:last-child { background: #f0f2f5; color: #444; }
     .nav-right a:hover:first-child { background: rgba(74,144,226,0.1); }
     .nav-right a:hover:last-child { background: #e0e2e5; }
-
     .container { max-width: 800px; margin: 0 auto; padding: 10rem 2rem 5rem; }
     .card {
       background: white; border-radius: 24px; padding: 3rem; box-shadow: 0 20px 50px rgba(0,0,0,0.12);
@@ -33,7 +30,6 @@
     }
     h2 { font-size: 2.6rem; color: #222; margin-bottom: 0.5rem; }
     .subtitle { font-size: 1.2rem; color: #666; margin-bottom: 3rem; }
-
     .input-group { margin-bottom: 1.5rem; text-align: left; }
     label { display: block; margin-bottom: 0.6rem; font-weight: 600; color: #444; }
     input, textarea {
@@ -41,22 +37,31 @@
       font-size: 1rem; transition: border 0.3s;
     }
     input:focus, textarea:focus { outline: none; border-color: var(--primary); }
-
     .btn-primary {
       background: var(--primary); color: white; padding: 1rem 2.5rem; border: none;
       border-radius: 16px; font-size: 1.2rem; font-weight: bold; cursor: pointer;
       width: 100%; margin-top: 1rem; transition: all 0.3s;
     }
     .btn-primary:hover { background: #357abd; transform: translateY(-4px); box-shadow: 0 10px 25px rgba(74,144,226,0.3); }
-
     .success-msg {
-      display: none; background: #d4edda; color: #155724; padding: 1.2rem;
-      border-radius: 12px; margin-top: 1.5rem; font-weight: 600;
+      display: none; 
+      background: linear-gradient(135deg, #d4edda, #c3e6cb);
+      color: #155724; 
+      padding: 1.4rem;
+      border-radius: 16px; 
+      margin-top: 1.5rem; 
+      font-weight: 600;
+      border: 1px solid #c3e6cb;
+      animation: fadeIn 0.5s;
+      text-align: center;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
     }
   </style>
 </head>
 <body>
-
   <nav class="navbar">
     <div class="logo">ProGen AI</div>
     <div class="nav-right">
@@ -69,7 +74,7 @@
     <div class="card">
       <h2>Support Dropbox</h2>
       <p class="subtitle">Submit any issue or question – our team reviews every ticket within hours.</p>
-
+      
       <form id="supportForm">
         <div class="input-group">
           <label for="subject">Subject *</label>
@@ -83,14 +88,19 @@
       </form>
 
       <div id="successMsg" class="success-msg">
-        Thank you! Your ticket has been submitted. We'll reply within a few hours.
+        Success! Your ticket has been submitted.<br>
+        <small>Ticket ID: <strong id="ticketId"></strong></small>
       </div>
     </div>
   </div>
 
   <script>
+    // Get current logged-in user
+    const currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
+
     document.getElementById("supportForm").addEventListener("submit", function(e) {
       e.preventDefault();
+
       const subject = document.getElementById("subject").value.trim();
       const message = document.getElementById("message").value.trim();
 
@@ -99,16 +109,37 @@
         return;
       }
 
-      const btn = this.querySelector("button");
-      btn.textContent = "Sending...";
-      btn.disabled = true;
+      // Load existing tickets
+      let tickets = JSON.parse(localStorage.getItem('supportTickets') || '[]');
+
+      // Create new ticket
+      const newTicket = {
+        id: Date.now().toString(),
+        company: currentUser?.company || 'Guest User',
+        email: currentUser?.email || 'guest@example.com',
+        subject: subject,
+        message: message,
+        status: 'open',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      // Save
+      tickets.unshift(newTicket); // newest first
+      localStorage.setItem('supportTickets', JSON.stringify(tickets));
+
+      // Success feedback
+      document.getElementById("ticketId").textContent = '#' + newTicket.id.slice(-6);
+      document.getElementById("successMsg").style.display = "block";
+      document.getElementById("supportForm").reset();
+
+      const btn = this.querySelector(".btn-primary");
+      btn.textContent = "Submitted!";
 
       setTimeout(() => {
-        document.getElementById("successMsg").style.display = "block";
-        document.getElementById("supportForm").reset();
         btn.textContent = "Submit Ticket";
-        btn.disabled = false;
-      }, 1200);
+        document.getElementById("successMsg").style.display = "none";
+      }, 5000);
     });
   </script>
 </body>
