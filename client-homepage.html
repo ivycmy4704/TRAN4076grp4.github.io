@@ -169,6 +169,10 @@
           <h3>Support</h3>
           <p>Get help and support from Admin</p>
         </div>
+        <div class="card" onclick="window.location.href='cn-client-homepage.html'">
+          <h3>Chinese Version</h3>
+          <p>Change language to Chinese</p>
+        </div>      
       </div>
     </div>
     <!-- Past Records Section -->
@@ -187,11 +191,6 @@
       window.location.href = 'index.html';
     }
 
-    // Improved Chinese language switch (preserves hash & query strings)
-    function switchToChinese() {
-      const chinesePage = 'cn-client-homepage.html';
-      window.location.href = chinesePage + window.location.search + window.location.hash;
-    }
 
     // Logout function
     function logout() {
