@@ -12,6 +12,7 @@ Your professional tool for instantly generating high-quality product images usin
 - **Supported browsers**: Chrome, Firefox, Safari (version 100 or newer)
 - JavaScript must be enabled
 - A registered account is required to generate images
+- Click the upper-left corner button "中文" to switch language settings 
 
 #### 1.2 Registration
 1. On the login page, click **“Don’t have an account? Create Account”**
