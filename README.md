@@ -62,7 +62,7 @@ All past generations are saved in **“View Past History”** on the Home page.
 
 #### 1.6 Account Management
 - Update email/password → Settings menu
-- Log out → Profile icon → **Log Out**
+- Click the upper-right corner button "Log out"  → **Log Out**
 - Need help → Use the **Support dropbox** on the Home page
 
 #### 1.7 Client Troubleshooting
@@ -83,32 +83,37 @@ Log in using the standard login page with your admin email/username and password
 
 #### 2.2 Admin Dashboard
 - Create premium templates (name, industry, aesthetic/art style, colors, etc.)
-- Assign templates to clients by entering their emails (one per line)
+- Assign templates to clients by entering their emails or usernames (one per line)
 - Save & generate code
 - View all templates and assignments
 
 #### 2.3 Managing Users (Client Management tab)
 - Search/filter users by email or company
-- View profile, generation count, history, last login
+- View profile: industry, generation count, history, last login
 - Edit company name, reset credits to 20, suspend, or delete accounts
 - Bulk actions available
+(Guidelines: Only suspend for violations (e.g., abuse). Notify users via email before major actions.)
 
 #### 2.4 Client Support tab
-- View support tickets and recent login history
+- View client messages in Support Tickets
+- Access to view Recent Login History
 
 #### 2.5 Monitoring & Reports
 - Activity logs (filterable, exportable to CSV)
-- Usage reports & error logs
+- Usage reports: Track total generations, peak hours, and identify high-usage clients for upselling.
+- Error logs: Review failed generations
 
 #### 2.6 System Configuration
 - Adjust rate limits and quotas
-- Configure SMTP for emails
-- Schedule backups (Maintenance section)
+- Configure SMTP for verifications
+- Schedule backups via the Maintenance section
+-Caution: Changes here affect all users; test in staging if possible.
 
 #### 2.7 Security & Maintenance
 - All admin actions are logged
 - Check for updates on the GitHub repository
 - Always log out from shared devices
+- Incident Response: For breaches, isolate users and contact support.
 
 #### 2.8 Admin Troubleshooting
 | Issue                | Solution                              |
