@@ -232,17 +232,17 @@
       <div class="hero">
         <h1>嗨，<span id="companyName">載入中...</span>！</h1>
         <p>準備好用最強 AI 為您的商品打造吸睛無敵的視覺大片了嗎？</p>
-        <button class="btn-huge" onclick="location.href='dashboard.html'">
+        <button class="btn-huge" onclick="location.href='cn-dashboard.html'">
           立即生成商品圖
         </button>
       </div>
 
       <div class="cards-grid">
-        <div class="feature-card" onclick="location.href='credit.html'">
+        <div class="feature-card" onclick="location.href='cn-credit.html'">
           <h3>點數餘額</h3>
           <p>查看目前剩餘點數<br>隨時加值，無痛升級方案</p>
         </div>
-        <div class="feature-card" onclick="location.href='questionnaire.html'">
+        <div class="feature-card" onclick="location.href='cn-questionnaire.html'">
           <h3>品牌設定</h3>
           <p>更新公司資訊、產品風格<br>讓 AI 更懂您的品牌調性</p>
         </div>
@@ -250,7 +250,7 @@
           <h3>歷史作品</h3>
           <p>瀏覽所有曾經生成的<br>AI 商品圖，一鍵回顧</p>
         </div>
-        <div class="feature-card" onclick="location.href='support.html'">
+        <div class="feature-card" onclick="location.href='cn-support.html'">
           <h3>技術支援</h3>
           <p>有任何問題？<br>管理員 24h 內快速回覆</p>
         </div>
@@ -262,7 +262,7 @@
       <h2 class="history-title">我的 AI 生成紀錄</h2>
       <div id="recordsList">載入中...</div>
       <div style="text-align:center; margin-top:3rem;">
-        <button class="btn-huge" onclick="location.href='dashboard.html'">
+        <button class="btn-huge" onclick="location.href='cn-dashboard.html'">
           再生成一張新圖
         </button>
       </div>
@@ -275,12 +275,12 @@
     const user = JSON.parse(localStorage.getItem('currentUser') || 'null');
     if (!user || !user.email) {
       alert('請先登入系統');
-      location.href = 'index.html';
+      location.href = 'cn-index.html';
     }
 
     // 語言切換功能 - 重定向到英文版
     function switchToEnglish() {
-      window.location.href = 'client-homepage.html';
+      window.location.href = 'cn-client-homepage.html';
     }
 
     // 顯示歡迎名稱
@@ -293,7 +293,7 @@
       if (confirm('確定要登出嗎？')) {
         localStorage.removeItem('currentUser');
         alert('已成功登出');
-        location.href = 'index.html';
+        location.href = 'cn-index.html';
       }
     }
 
