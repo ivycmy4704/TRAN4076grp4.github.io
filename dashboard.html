@@ -3,274 +3,346 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>ProGen AI - Your Product Images</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+  <title>ProGen AI - Dashboard</title>
   <style>
-    :root { --primary: #4a90e2; --success: #7ed321; --accent: #ff9800; --gray: #f0f2f5; }
+    :root { --primary: #4a90e2; --success: #10b981; --danger: #ef4444; }
     body { font-family: 'Segoe UI', sans-serif; background: #f8f9ff; margin: 0; color: #333; }
-    .navbar { background: #fff; padding: 1rem 2rem; box-shadow: 0 2px 10px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; }
-    .logo { font-weight: bold; font-size: 1.6rem; color: var(--primary); }
-    .container { max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
-    .card { background: #fff; border-radius: 16px; padding: 2.5rem; box-shadow: 0 8px 30px rgba(0,0,0,0.08); }
-    .locked-product {
-      background: #e6f3ff; padding: 1.2rem 1.5rem; border-radius: 12px;
-      border: 3px solid var(--primary); font-weight: bold; color: var(--primary);
-      text-align: center; font-size: 1.3rem; margin-bottom: 1.5rem;
-      box-shadow: 0 4px 15px rgba(74,144,226,0.2);
+    .navbar { background: #fff; padding: 1.2rem 2rem; box-shadow: 0 4px 20px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+    .logo { font-weight: bold; font-size: 1.8rem; color: var(--primary); cursor: pointer; }
+    .nav-links { display: flex; gap: 20px; align-items: center; }
+    .nav-links a { text-decoration: none; color: #555; font-weight: 500; padding: 10px 16px; border-radius: 12px; transition: all 0.3s; }
+    .nav-links a:hover { background: #f0f8ff; color: var(--primary); }
+
+    .container { max-width: 1200px; margin: 2rem auto; padding: 0 1rem; }
+    .card { background: #fff; border-radius: 20px; padding: 3rem; box-shadow: 0 15px 40px rgba(0,0,0,0.1); text-align: center; }
+
+    /* PREMIUM BOX — ALWAYS VISIBLE */
+    #premiumTemplateBox {
+      background: linear-gradient(135deg, #8b5cf6, #ec4899);
+      color: white; padding: 2.5rem; border-radius: 24px; margin: 0 0 2.5rem 0;
+      box-shadow: 0 25px 60px rgba(139,92,246,0.6); animation: float 6s ease-in-out infinite;
+      position: relative; overflow: hidden;
     }
-    .input-group { margin-bottom: 1.8rem; }
-    label { display: block; margin-bottom: 0.6rem; font-weight: 600; color: #444; }
-    textarea { width: 100%; padding: 1rem; border: 2px solid #e0e0e0; border-radius: 12px; font-size: 1rem; min-height: 130px; transition: border 0.3s; }
-    textarea:focus { outline: none; border-color: var(--primary); }
-    .quick-tags { margin: 2rem 0; padding: 1.5rem; background: var(--gray); border-radius: 12px; }
-    .tag-title { font-weight: 600; color: var(--primary); margin: 1rem 0 0.7rem 0; font-size: 1rem; }
-    .tags { display: flex; flex-wrap: wrap; gap: 10px; }
-    .tag {
-      background: white; color: var(--primary); padding: 8px 16px; border-radius: 30px;
-      font-size: 0.9rem; cursor: pointer; transition: all 0.2s; border: 1px solid #d0e4ff;
+    #premiumTemplateBox::before {
+      content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+      background: repeating-linear-gradient(45deg, transparent, transparent 35px, rgba(255,255,255,0.07) 35px, rgba(255,255,255,0.07) 70px);
+      animation: shine 14s linear infinite;
     }
-    .tag:hover { background: var(--primary); color: white; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(74,144,226,0.3); }
-    .btn-primary, .btn-success, .btn-accent, .btn-secondary {
-      padding: 0.9rem 2rem; border: none; border-radius: 12px; cursor: pointer; font-weight: 600; font-size: 1.05rem; transition: all 0.2s;
+    .premium-badge { 
+      display: inline-block; background: rgba(255,255,255,0.25); padding: 0.6rem 1.6rem; 
+      border-radius: 50px; font-weight: bold; font-size: 1rem; margin-bottom: 1rem; backdrop-filter: blur(10px);
     }
-    .btn-primary { background: var(--primary); color: white; }
-    .btn-success { background: var(--success); color: white; }
-    .btn-accent { background: var(--accent); color: white; }
-    .btn-secondary { background: #eee; color: #333; }
-    .btn-sm { padding: 0.6rem 1.2rem; font-size: 0.9rem; }
-    .btn-nav {
-      background: none;
-      border: none;
-      color: var(--primary);
-      text-decoration: none;
-      cursor: pointer;
-      font-size: inherit;
-      padding: 0;
-      margin: 0;
-      font-weight: 600;
+    .premium-title { font-size: 2.3rem; margin: 0.5rem 0; font-weight: bold; }
+    .premium-code { 
+      background: rgba(255,255,255,0.2); padding: 14px 34px; border-radius: 50px; 
+      font-family: 'Courier New', monospace; font-size: 2rem; letter-spacing: 5px; margin: 1.2rem 0;
+      backdrop-filter: blur(10px);
     }
-    .btn-nav:hover {
-      text-decoration: underline;
+    .premium-details {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1.2rem; margin-top: 1.5rem;
+      font-size: 1.05rem;
     }
-    .btn:hover { opacity: 0.9; transform: translateY(-1px); }
-    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .detail-item {
+      background: rgba(255,255,255,0.15); padding: 1rem; border-radius: 16px; backdrop-filter: blur(8px);
+    }
+    .color-preview { display: flex; gap: 12px; margin-top: 8px; }
+    .color-box { width: 44px; height: 44px; border-radius: 14px; border: 3px solid rgba(255,255,255,0.4); }
+
+    .universal-templates {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white; padding: 2rem; border-radius: 20px; margin: 2rem 0;
+      box-shadow: 0 15px 40px rgba(102,126,234,0.4);
+    }
+    .universal-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin-top: 1.5rem;
+    }
+    .template-option {
+      background: rgba(255,255,255,0.15); border-radius: 16px; padding: 1.5rem; cursor: pointer;
+      transition: all 0.3s; backdrop-filter: blur(10px); border: 2px solid transparent;
+    }
+    .template-option:hover { transform: translateY(-6px); background: rgba(255,255,255,0.25); }
+    .template-option.selected { border: 3px solid #10b981; background: rgba(16,185,129,0.2); transform: scale(1.05); }
+
+    .locked-product, .info-note { margin: 2rem 0; border-radius: 16px; padding: 2rem; }
+    .locked-product { background: #e6f3ff; border: 3px solid var(--primary); font-size: 1.4rem; font-weight: bold; }
+    .info-note { background: #f8f9fa; border-left: 5px solid var(--primary); }
+
+    .btn-primary { background: var(--primary); color: white; padding: 1.4rem 2.5rem; border: none; border-radius: 16px; font-size: 1.3rem; width: 100%; cursor: pointer; font-weight: bold; margin: 1rem 0; }
+    .btn-success { background: var(--success); color: white; padding: 1.2rem 2rem; border: none; border-radius: 12px; font-size: 1.1rem; cursor: pointer; font-weight: bold; }
+
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 2rem; }
-    .result-card { background: #fafafa; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); text-align: center; position: relative; }
-    .image-container { width: 100%; height: 420px; background: #f0f2f5; position: relative; overflow: hidden; }
-    .result-card img { width: 100%; height: 100%; object-fit: cover; display: none; animation: fadeIn 0.6s; }
-    .loader-wrapper { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; }
-    .spinner { width: 60px; height: 60px; border: 6px solid #e0e0e0; border-top: 6px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; }
-    .timer-text { margin-top: 16px; font-family: monospace; font-weight: bold; font-size: 1.4rem; color: var(--primary); }
+    .result-card { background: white; border-radius: 20px; overflow: hidden; box-shadow: 0 12px 30px rgba(0,0,0,0.15); }
+    .image-container { height: 520px; background: #f0f7ff; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+    .final-img { display: none; width: 100%; height: 100%; object-fit: cover; }
+    .loader-wrapper { position: absolute; z-index: 10; text-align: center; color: var(--primary); }
+    .spinner { width: 80px; height: 80px; border: 9px solid #f0f0f0; border-top: 9px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 1rem; }
+    .timer-text { font-family: 'Courier New', monospace; font-size: 2rem; font-weight: bold; color: var(--primary); }
+    .regenerate-box { margin: 3rem 0 1rem; padding: 2.5rem; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border-radius: 20px; box-shadow: 0 15px 40px rgba(102,126,234,0.4); display: none; text-align: center; }
+
     @keyframes spin { to { transform: rotate(360deg); } }
-    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-    .loading-text { text-align: center; margin: 1.5rem 0; color: #666; font-style: italic; display: none; }
-    #creditDisplay { font-weight: bold; color: var(--primary); font-size: 1.1rem; }
-    .preview-box { background: #f0f8ff; border: 2px solid #cce5ff; border-radius: 12px; padding: 1.5rem; margin: 1.5rem 0; }
-    .editable-preview { background: white; padding: 1rem; border-radius: 8px; min-height: 80px; white-space: pre-wrap; margin: 0.5rem 0; border: 1px solid #ddd; }
-    .actions-area { margin-top: 2.5rem; padding-top: 1.5rem; border-top: 1px solid #eee; text-align: center; display: none; }
+    @keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+    @keyframes shine { 0% { transform: translateX(-100%) translateY(-100%) rotate(30deg); } 100% { transform: translateX(100%) translateY(100%) rotate(30deg); } }
   </style>
 </head>
 <body>
   <nav class="navbar">
-    <div class="logo">ProGen AI</div>
-    <div style="display:flex; gap:20px; align-items:center;">
-      <span id="creditDisplay">Credits: 20</span>
-      <a href="credit.html" class="btn-sm btn-primary" style="text-decoration:none; margin-left:10px;">Add Credits</a>
-      <a href="support.html" class="btn-sm btn-secondary" style="text-decoration:none;">Support</a>
-      <button class="btn-nav" onclick="viewUserInfo()">My Brand Info</button>
-      <a href="#" onclick="logout()" class="btn-nav">Logout</a>
+    <div class="logo" onclick="location.href='dashboard.html'">ProGen AI</div>
+    <div class="nav-links">
+      <a href="dashboard.html">Dashboard</a>
+      <a href="credit.html">Buy Credits (<span id="creditDisplay">20</span>)</a>
+      <a href="client-homepage.html">Home</a>
+      <a href="index.html">Logout</a>
     </div>
   </nav>
+
   <div class="container">
     <div class="card">
-      <h2 style="margin-top:0; text-align:center; color:#333;">
-        Beautiful Images for <span id="productNameDisplay" style="color:var(--primary);"></span>
+
+      <!-- ALWAYS VISIBLE PREMIUM PREVIEW -->
+      <div id="premiumTemplateBox">
+        <div class="premium-badge" id="premiumBadge">PREMIUM TEMPLATE</div>
+        <h2 class="premium-title" id="premiumTitle">Luxury Gold 2025</h2>
+        <div class="premium-code" id="premiumCode">LUX-2025-GOLD</div>
+        <p id="premiumSource" style="opacity:0.9;font-size:1.1rem;margin:1rem 0;">Enter code to unlock this exclusive style</p>
+        <div class="premium-details">
+          <div class="detail-item"><strong>Aesthetic</strong><br>Luxury & Elegant</div>
+          <div class="detail-item"><strong>Style</strong><br>Studio Product Shot</div>
+          <div class="detail-item"><strong>Colors</strong>
+            <div class="color-preview">
+              <div class="color-box" style="background:#ffd700;"></div>
+              <div class="color-box" style="background:#1a1a1a;"></div>
+            </div>
+          </div>
+          <div class="detail-item"><strong>Industry</strong><br>Jewelry • Watches • Premium</div>
+        </div>
+      </div>
+
+      <h2 style="font-size:2.4rem; margin-bottom:1rem;">
+        Stunning Images for <span style="color:var(--primary);" id="productNameDisplay">Your Product</span>
       </h2>
-      <p style="text-align:center; color:#666; margin-bottom:2rem;">
-        Your product name is locked — every image will feature it perfectly.
-      </p>
+
+      <div class="universal-templates">
+        <h3 style="margin:0 0 1rem;">Choose Your Style (Free Templates)</h3>
+        <div class="universal-grid" id="universalTemplates"></div>
+      </div>
+
+      <div style="margin:2.5rem 0;">
+        <h3>Have a Premium Code?</h3>
+        <input type="text" id="templateCodeInput" placeholder="e.g. LUX-2025-GOLD" style="padding:14px; width:340px; border:1px solid #ccc; border-radius:12px; font-size:1.2rem;" />
+        <button onclick="applyTemplateCode()" style="margin-left:10px; padding:12px 24px; background:#8b5cf6; color:white; border:none; border-radius:12px; cursor:pointer; font-weight:bold;">Activate Premium</button>
+        <p id="templateStatus" style="margin-top:1rem; font-weight:bold;"></p>
+      </div>
+
       <div class="locked-product">
         Product: <span id="lockedProductName">Loading...</span>
       </div>
-      <div class="input-group">
-        <label>Add Style (optional)</label>
-        <textarea id="prompt" placeholder="Click tags or type: on white background, luxury lighting, etc..."></textarea>
-      </div>
-      <div class="quick-tags">
-        <div class="tag-category">
-          <div class="tag-title">Background & Scene</div>
-          <div class="tags">
-            <span class="tag" onclick="addTag('on clean white background')">Clean White</span>
-            <span class="tag" onclick="addTag('on soft pastel background')">Pastel</span>
-            <span class="tag" onclick="addTag('floating with soft shadows')">Floating</span>
-            <span class="tag" onclick="addTag('on marble table')">Marble Table</span>
-            <span class="tag" onclick="addTag('in luxury bathroom')">Luxury Bathroom</span>
-            <span class="tag" onclick="addTag('on wooden table with plants')">Natural Wood</span>
-          </div>
-        </div>
-        <div class="tag-category">
-          <div class="tag-title">Lighting & Mood</div>
-          <div class="tags">
-            <span class="tag" onclick="addTag('soft natural light')">Soft Natural</span>
-            <span class="tag" onclick="addTag('golden hour glow')">Golden Hour</span>
-            <span class="tag" onclick="addTag('studio lighting')">Studio Light</span>
-            <span class="tag" onclick="addTag('dramatic shadows')">Dramatic</span>
-            <span class="tag" onclick="addTag('bright and clean')">Bright & Clean</span>
-          </div>
-        </div>
-        <div class="tag-category">
-          <div class="tag-title">Style</div>
-          <div class="tags">
-            <span class="tag" onclick="addTag('minimalist')">Minimalist</span>
-            <span class="tag" onclick="addTag('luxury editorial')">Luxury</span>
-            <span class="tag" onclick="addTag('e-commerce style')">E-commerce</span>
-            <span class="tag" onclick="addTag('flat lay')">Flat Lay</span>
-            <span class="tag" onclick="addTag('with water droplets')">Fresh Dew</span>
-          </div>
-        </div>
-      </div>
-      <button class="btn-primary" id="previewBtn" onclick="generateNow()" style="width:100%; padding:1.2rem; font-size:1.1rem;">
-        Generate 2 Beautiful Photos
-      </button>
-      <div id="results" class="grid-2" style="display:none;"></div>
-      <div id="regenSection" class="actions-area">
-        <h3>Want something different?</h3>
-        <p>Just tell us what to change — the AI learns from you!</p>
-        <button class="btn-accent" onclick="openRefineModal()">Refine & Regenerate</button>
-      </div>
-    </div>
-  </div>
 
-  <!-- Refine Modal -->
-  <div id="refineModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); align-items:center; justify-content:center; z-index:1000;">
-    <div style="background:white; padding:2rem; border-radius:16px; width:90%; max-width:500px;">
-      <h3>Make it perfect</h3>
-      <p>What should we change?</p>
-      <input type="text" id="refineInput" placeholder="e.g. brighter background, add flowers..." style="width:100%; padding:12px; border:1px solid #ccc; border-radius:8px;">
-      <div style="margin-top:1.5rem; text-align:right; display:flex; gap:10px; justify-content:flex-end;">
-        <button class="btn-accent" onclick="applyRefinement()">Regenerate</button>
-        <button class="btn-secondary" onclick="document.getElementById('refineModal').style.display='none'">Cancel</button>
+      <div class="info-note">
+        Lightning-fast • 1024×1024 HD • 2 credits per generation • Powered by Pollinations.ai
+      </div>
+
+      <button class="btn-primary" onclick="generateNow()">
+        Generate 2 Images Now (-2 Credits)
+      </button>
+
+      <div id="results" class="grid-2" style="display:none;"></div>
+
+      <div id="regenerateBox" class="regenerate-box">
+        <h3>Want more variations?</h3>
+        <button class="btn-success" onclick="generateNow()">Generate 2 More (-2 Credits)</button>
       </div>
     </div>
   </div>
 
   <script>
-    const productName = localStorage.getItem('userProduct') || 'Your Product';
-    document.getElementById('productNameDisplay').textContent = productName;
-    document.getElementById('lockedProductName').textContent = productName;
+    let productName = "Premium Product";
+    let currentUser = { email: "" };
+    let activeTemplate = null;
 
-    let credits = parseInt(localStorage.getItem('progen_credits')) || 20;
-    let lastUsedPrompt = productName;
+    const UNIVERSAL_TEMPLATES = [
+      { id: "clean-white", name: "Clean White Studio", desc: "Pure white, soft light", promptAdd: ", clean white seamless background, soft studio lighting, premium product photography" },
+      { id: "dark-moody", name: "Dark & Moody", desc: "Cinematic black backdrop", promptAdd: ", dark black background, moody cinematic lighting, high contrast, luxury" },
+      { id: "natural-light", name: "Natural Window Light", desc: "Soft daylight feel", promptAdd: ", soft natural window light, light gray backdrop, lifestyle product shot" },
+      { id: "gold-luxury", name: "Gold Luxury", desc: "Golden hour vibes", promptAdd: ", golden hour lighting, subtle gold reflections, ultra premium" },
+      { id: "minimal-gray", name: "Minimal Gray", desc: "Scandinavian simplicity", promptAdd: ", light gray seamless background, minimal composition, soft shadows" }
+    ];
 
     document.addEventListener('DOMContentLoaded', () => {
-      updateCreditsUI();
-      document.getElementById('prompt').focus();
-    });
-
-    function updateCreditsUI() {
-      document.getElementById('creditDisplay').textContent = `Credits: ${credits}`;
-      localStorage.setItem('progen_credits', credits);
-    }
-
-    function getFullPrompt() {
-      const style = document.getElementById('prompt').value.trim();
-      return style ? `${productName}, ${style}` : productName;
-    }
-
-    function addTag(text) {
-      const textarea = document.getElementById('prompt');
-      const current = textarea.value.trim();
-      textarea.value = current ? current + ", " + text : text;
-      textarea.focus();
-    }
-
-    function generateNow() {
-      if (credits < 2) {
-        alert("Not enough credits! Contact support to get more.");
+      try {
+        currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+      } catch(e) {}
+      if (!currentUser.email) {
+        alert("Please login first");
+        location.href = 'index.html';
         return;
       }
 
-      const prompt = getFullPrompt();
-      lastUsedPrompt = prompt;
+      productName = localStorage.getItem('userProduct') || "Your Product";
+      document.getElementById('productNameDisplay').textContent = productName;
+      document.getElementById('lockedProductName').textContent = productName;
+      updateCredits();
+
+      // Check for saved premium code
+      const saved = localStorage.getItem(`userPremiumCode_${currentUser.email}`);
+      if (saved) {
+        try {
+          const t = JSON.parse(saved);
+          activatePremium(t);
+        } catch(e) {}
+      }
+
+      const savedChoice = localStorage.getItem(`userTemplateChoice_${currentUser.email}`) || "clean-white";
+      renderUniversalTemplates(savedChoice);
+      if (!activeTemplate) activeTemplate = UNIVERSAL_TEMPLATES.find(t => t.id === savedChoice);
+    });
+
+    function activatePremium(template) {
+      document.getElementById('premiumBadge').textContent = "PREMIUM ACTIVE";
+      document.getElementById('premiumBadge').style.background = "rgba(16,185,129,0.5)";
+      document.getElementById('premiumTitle').textContent = template.name || "Premium Active";
+      document.getElementById('premiumCode').textContent = template.code || "CUSTOM";
+      document.getElementById('premiumSource').textContent = "Premium style activated";
+      document.getElementById('premiumSource').style.color = "#10b981";
+      activeTemplate = template;
+    }
+
+    window.applyTemplateCode = function() {
+      const code = document.getElementById('templateCodeInput').value.trim().toUpperCase();
+      if (!code) return;
+
+      const allTemplates = JSON.parse(localStorage.getItem("progenTemplatesV2") || '{"_history":[]}')._history || [];
+      const found = allTemplates.find(t => t.code === code);
+
+      if (found) {
+        activatePremium(found);
+        localStorage.setItem(`userPremiumCode_${currentUser.email}`, JSON.stringify(found));
+        document.getElementById('templateStatus').innerHTML = '<span style="color:#10b981;">Premium template activated!</span>';
+      } else {
+        document.getElementById('templateStatus').innerHTML = '<span style="color:#ef4444;">Invalid or expired code</span>';
+      }
+    };
+
+    function renderUniversalTemplates(selectedId) {
+      const container = document.getElementById('universalTemplates');
+      container.innerHTML = UNIVERSAL_TEMPLATES.map(t => `
+        <div class="template-option ${t.id === selectedId ? 'selected' : ''}" onclick="selectUniversalTemplate('${t.id}')">
+          <h4>${t.name}</h4>
+          <p>${t.desc}</p>
+        </div>
+      `).join('');
+    }
+
+    window.selectUniversalTemplate = function(id) {
+      localStorage.setItem(`userTemplateChoice_${currentUser.email}`, id);
+      renderUniversalTemplates(id);
+      activeTemplate = UNIVERSAL_TEMPLATES.find(t => t.id === id);
+    };
+
+    function getFullPrompt() {
+      let prompt = `${productName}, photorealistic, ultra sharp, 8k, commercial product photography, sharp focus`;
+      if (activeTemplate?.promptAdd) {
+        prompt += activeTemplate.promptAdd;
+      } else {
+        prompt += ", clean white seamless background, soft studio lighting";
+      }
+      prompt += `, seed:${Date.now() + Math.floor(Math.random()*100000)}`;
+      return prompt;
+    }
+
+    function updateCredits() {
+      const credits = parseInt(localStorage.getItem('userCredits') || '20');
+      document.getElementById('creditDisplay').textContent = credits;
+    }
+
+    function deductCredits() {
+      let credits = parseInt(localStorage.getItem('userCredits') || '20');
+      if (credits < 2) {
+        alert("Not enough credits!");
+        setTimeout(() => location.href = 'credit.html', 1000);
+        return false;
+      }
       credits -= 2;
-      updateCreditsUI();
+      localStorage.setItem('userCredits', credits);
+      updateCredits();
+      return true;
+    }
 
-      const resultsDiv = document.getElementById('results');
-      resultsDiv.innerHTML = '';
-      resultsDiv.style.display = 'grid';
-      document.getElementById('regenSection').style.display = 'none';
+    function saveToHistory(url, prompt) {
+      const records = JSON.parse(localStorage.getItem('userRecords') || '{}');
+      if (!records[currentUser.email]) records[currentUser.email] = [];
+      records[currentUser.email].unshift({
+        imageUrl: url,
+        prompt: prompt,
+        title: productName + (activeTemplate ? ` [${activeTemplate.name || activeTemplate.code}]` : ""),
+        date: new Date().toISOString()
+      });
+      if (records[currentUser.email].length > 50) records[currentUser.email].pop();
+      localStorage.setItem('userRecords', JSON.stringify(records));
+    }
 
-      const seeds = [Math.floor(Math.random() * 999999), Math.floor(Math.random() * 999999)];
+    window.generateNow = function() {
+      if (!deductCredits()) return;
 
-      seeds.forEach((seed, index) => {
-        const encodedPrompt = encodeURIComponent(prompt);
-        const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=960&height=960&seed=${seed}&nologo=true&model=flux-schnell`;
+      const results = document.getElementById('results');
+      results.style.display = 'grid';
+      results.innerHTML = '';
+      document.getElementById('regenerateBox').style.display = 'block';
 
+      const prompt = getFullPrompt();
+
+      for (let i = 0; i < 2; i++) {
         const card = document.createElement('div');
         card.className = 'result-card';
         card.innerHTML = `
           <div class="image-container">
             <div class="loader-wrapper">
               <div class="spinner"></div>
-              <div class="timer-text">5.0s</div>
+              <div class="timer-text">00:15</div>
+              <p>Generating your image...</p>
             </div>
-            <img src="${imageUrl}" alt="Generated image" 
-                 onload="this.style.display='block'; this.previousElementSibling.style.display='none'; document.getElementById('regenSection').style.display='block';"
-                 onerror="this.previousElementSibling.innerHTML='<p style=\'color:red;\'>Failed to load</p>'">
+            <img class="final-img" alt="Generated ${i+1}" />
           </div>
-          <button class="btn-sm btn-primary" style="margin:1rem;" onclick="downloadImage('${imageUrl}', ${index+1})">Download</button>
+          <div style="padding:1.5rem;">
+            <button class="btn-success" onclick="downloadImage(this.closest('.result-card').querySelector('img').src)">
+              Download Image ${i+1}
+            </button>
+          </div>
         `;
-        resultsDiv.appendChild(card);
+        results.appendChild(card);
 
-        // Countdown timer
-        let timeLeft = 5.0;
-        const timerEl = card.querySelector('.timer-text');
-        const timerInterval = setInterval(() => {
-          timeLeft -= 0.1;
-          if (timeLeft <= 0) {
-            timerEl.textContent = "Finishing...";
-            clearInterval(timerInterval);
-          } else {
-            timerEl.textContent = timeLeft.toFixed(1) + "s";
-          }
-        }, 100);
-      });
-    }
+        const img = card.querySelector('.final-img');
+        const timerText = card.querySelector('.timer-text');
+        let seconds = 15;
+        const timer = setInterval(() => {
+          seconds--;
+          timerText.textContent = `00:${seconds.toString().padStart(2, '0')}`;
+          if (seconds <= 0) clearInterval(timer);
+        }, 1000);
 
-    function downloadImage(url, num) {
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${productName.replace(/ /g, '_')}_${num}.jpg`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    }
+        const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1024&height=1024&seed=${Date.now()+i*10000}&nologo=true&enhance=true`;
 
-    function openRefineModal() {
-      document.getElementById('refineModal').style.display = 'flex';
-      document.getElementById('refineInput').focus();
-    }
-
-    function applyRefinement() {
-      const feedback = document.getElementById('refineInput').value.trim();
-      if (feedback) {
-        const current = document.getElementById('prompt').value.trim();
-        document.getElementById('prompt').value = current ? current + ", " + feedback : feedback;
+        img.onload = () => {
+          img.style.display = 'block';
+          card.querySelector('.loader-wrapper').style.display = 'none';
+          clearInterval(timer);
+          saveToHistory(img.src, prompt);
+        };
+        img.onerror = () => {
+          card.querySelector('.loader-wrapper').innerHTML = '<p style="color:red;">Failed. Try again!</p>';
+          clearInterval(timer);
+        };
+        img.src = url;
       }
-      document.getElementById('refineModal').style.display = 'none';
-      document.getElementById('refineInput').value = '';
-      generateNow();
-    }
+    };
 
-    // New function for My Brand Info button
-    function viewUserInfo() {
-      window.location.href = 'user-info.html';
-    }
-
-    function logout() {
-      localStorage.removeItem('currentUser');
-      window.location.href = 'index.html';
-    }
+    window.downloadImage = function(src) {
+      const a = document.createElement('a');
+      a.href = src;
+      a.download = `${productName.replace(/ /g, '_')}_${Date.now()}.jpg`;
+      a.click();
+    };
   </script>
 </body>
 </html>
+
+

@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin Clients - ProGen AI</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #f4f6f9; }
+    #adminModal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; z-index: 9999; }
+    .modal-content { background: #fff; padding: 2.5rem; border-radius: 16px; width: 380px; box-shadow: 0 20px 40px rgba(0,0,0,.3); position: relative; }
+    .modal-content::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, #667eea, #764ba2, #f093fb); }
+    .modal-content h3 { margin: 0 0 1.5rem; text-align: center; font-size: 1.8rem; background: linear-gradient(135deg, #667eea, #764ba2); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .input-group { margin-bottom: 1.5rem; }
+    label { display: block; margin-bottom: .6rem; font-weight: 600; color: #555; }
+    input { width: 100%; padding: 12px; border: 2px solid #e1e5e9; border-radius: 8px; font-size: 1rem; }
+    input:focus { border-color: #667eea; box-shadow: 0 0 0 3px rgba(102,126,234,0.1); outline: none; }
+    .modal-actions { display: flex; gap: 1rem; margin-top: 2rem; }
+    .modal-actions button { padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; flex: 1; }
+    .btn-primary { background: linear-gradient(135deg, #667eea, #764ba2); color:#fff; }
+    .btn-secondary { background: #f8f9fa; color: #666; border: 2px solid #e1e5e9; }
+
+    .container { max-width: 1200px; margin: 2rem auto; padding: 0 1rem; }
+    .card { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); margin-bottom: 2rem; }
+    .navbar { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 1rem 2rem; color: white; display: flex; justify-content: space-between; align-items: center; }
+    .navbar a { color: white; text-decoration: none; margin-left: 1.5rem; font-weight: 500; }
+
+    .search-bar { width: 100%; padding: 12px; border: 2px solid #e1e5e9; border-radius: 8px; font-size: 1rem; margin-bottom: 1.5rem; }
+    .search-bar:focus { border-color: #667eea; outline: none; }
+
+    table { width: 100%; border-collapse: collapse; }
+    th { background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 1rem; text-align: left; }
+    td { padding: 1rem; border-bottom: 1px solid #eee; vertical-align: middle; }
+    tr:hover { background: #f8f9fa; }
+    .btn-sm { padding: 6px 12px; margin: 0 4px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
+    .btn-success { background: #28a745; color: white; }
+    .btn-info { background: #17a2b8; color: white; }
+    .btn-secondary { background: #6c757d; color: white; }
+    .btn-danger { background: #dc3545; color: white; }
+
+    /* History Modal Styles */
+    .history-modal { 
+      position: fixed; 
+      top: 0; 
+      left: 0; 
+      width: 100%; 
+      height: 100%; 
+      background: rgba(0,0,0,0.8); 
+      display: none; 
+      align-items: center; 
+      justify-content: center; 
+      z-index: 10000; 
+    }
+    .history-content { 
+      background: white; 
+      padding: 2rem; 
+      border-radius: 12px; 
+      width: 90%; 
+      max-width: 1000px; 
+      max-height: 80vh; 
+      overflow-y: auto; 
+    }
+    .history-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 1.5rem;
+      margin-top: 1rem;
+    }
+    .history-item {
+      border: 1px solid #e1e5e9;
+      border-radius: 8px;
+      overflow: hidden;
+      background: white;
+    }
+    .history-image {
+      width: 100%;
+      height: 200px;
+      background: #f8f9fa;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    .history-image img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .history-info {
+      padding: 1rem;
+    }
+    .history-prompt {
+      font-size: 0.9rem;
+      color: #555;
+      margin-bottom: 0.5rem;
+      line-height: 1.4;
+    }
+    .history-date {
+      font-size: 0.8rem;
+      color: #888;
+      display: flex;
+      justify-content: space-between;
+    }
+    .empty-history {
+      text-align: center;
+      padding: 3rem;
+      color: #666;
+      grid-column: 1 / -1;
+    }
+    .close-btn {
+      background: #dc3545;
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      cursor: pointer;
+      float: right;
+      margin-bottom: 1rem;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="adminModal">
+    <div class="modal-content">
+      <h3>Admin Login</h3>
+      <form id="adminLoginForm">
+        <div class="input-group">
+          <label>Admin Name</label>
+          <input type="text" id="adminName" required />
+        </div>
+        <div class="input-group">
+          <label>Password</label>
+          <input type="password" id="adminPass" required />
+        </div>
+        <div class="modal-actions">
+          <button type="button" id="cancelBtn" class="btn-secondary">Cancel</button>
+          <button type="submit" class="btn-primary">Login</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- History Modal -->
+  <div id="historyModal" class="history-modal">
+    <div class="history-content">
+      <button class="close-btn" onclick="closeHistoryModal()">✕ Close</button>
+      <h3 id="historyUserTitle">User History</h3>
+      <div id="historyContent">
+        <!-- History content will be loaded here -->
+      </div>
+    </div>
+  </div>
+
+  <div id="adminPanel" style="display:none;">
+    <nav class="navbar">
+      <div style="font-size: 1.6rem; font-weight: bold;">Client Management</div>
+      <div>
+        <a href="admin-create.html">Create Templates</a>
+        <a href="admin-support.html">Support Center</a>
+        <a href="index.html" id="logoutLink">Logout</a>
+      </div>
+    </nav>
+
+    <div class="container">
+      <div class="card">
+        <h2>Manage Customers</h2>
+        <input type="text" id="search" class="search-bar" placeholder="Search by company or email..." oninput="renderUsers()" />
+        <table>
+          <thead>
+            <tr>
+              <th>Company</th>
+              <th>Email</th>
+              <th>Industry</th>
+              <th>Credits</th>
+              <th>Last Login</th>
+              <th>Generated Images</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="userTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const ADMIN_NAME = 'admin';
+    const ADMIN_PASS = 'admin001';
+    const modal = document.getElementById('adminModal');
+    const panel = document.getElementById('adminPanel');
+    const form = document.getElementById('adminLoginForm');
+    const historyModal = document.getElementById('historyModal');
+
+    const setSession = () => sessionStorage.setItem('adminAuth', 'true');
+    const clearSession = () => sessionStorage.removeItem('adminAuth');
+    const isAuth = () => sessionStorage.getItem('adminAuth') === 'true';
+
+    if (isAuth()) { modal.style.display = 'none'; panel.style.display = 'block'; renderUsers(); }
+
+    form.addEventListener('submit', e => {
+      e.preventDefault();
+      const name = document.getElementById('adminName').value.trim();
+      const pass = document.getElementById('adminPass').value;
+      if (name === ADMIN_NAME && pass === ADMIN_PASS) {
+        setSession();
+        modal.style.display = 'none';
+        panel.style.display = 'block';
+        renderUsers();
+      } else alert('Invalid credentials');
+    });
+
+    document.getElementById('cancelBtn').onclick = () => location.href = 'index.html';
+    document.getElementById('logoutLink').onclick = e => { e.preventDefault(); clearSession(); location.href = 'index.html'; };
+
+    function renderUsers() {
+      const users = JSON.parse(localStorage.getItem('users') || '[]');
+      const search = document.getElementById('search').value.toLowerCase();
+      const tbody = document.getElementById('userTableBody');
+
+      const filtered = users.filter(u => 
+        (u.company || '').toLowerCase().includes(search) || 
+        (u.email || '').toLowerCase().includes(search)
+      );
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:3rem; color:#666;">No users found</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(user => {
+        // Count user's generated images
+        const userHistory = JSON.parse(localStorage.getItem(`imageHistory_${user.email}`) || '[]');
+        const imageCount = userHistory.length;
+        
+        return `
+        <tr>
+          <td><strong>${user.company || 'N/A'}</strong></td>
+          <td>${user.email}</td>
+          <td>${user.industry || 'N/A'}</td>
+          <td><input type="number" value="${user.credits || 0}" class="credit-input" data-email="${user.email}" style="width:70px;" min="0"></td>
+          <td>${user.lastLogin ? new Date(user.lastLogin).toLocaleString() : 'Never'}</td>
+          <td>
+            <span style="font-weight:bold; color:${imageCount > 0 ? '#28a745' : '#dc3545'}">
+              ${imageCount} images
+            </span>
+          </td>
+          <td>
+            <button class="btn-sm btn-info" onclick="viewUserHistory('${user.email}', '${user.company}')">View History</button>
+            <button class="btn-sm btn-success" onclick="saveCredits('${user.email}')">Save Credits</button>
+            <button class="btn-sm btn-secondary" onclick="editUser('${user.email}')">Edit</button>
+            <button class="btn-sm btn-danger" onclick="deleteUser('${user.email}')">Delete</button>
+          </td>
+        </tr>
+      `}).join('');
+    }
+
+    // NEW: View user history function
+    window.viewUserHistory = function(userEmail, companyName) {
+      const userHistory = JSON.parse(localStorage.getItem(`imageHistory_${userEmail}`) || '[]');
+      const historyContent = document.getElementById('historyContent');
+      const historyTitle = document.getElementById('historyUserTitle');
+      
+      historyTitle.textContent = `${companyName || 'User'} - Generated Images (${userHistory.length})`;
+      
+      if (userHistory.length === 0) {
+        historyContent.innerHTML = `
+          <div class="empty-history">
+            <h4>No Generated Images</h4>
+            <p>This user hasn't generated any images yet.</p>
+          </div>
+        `;
+      } else {
+        historyContent.innerHTML = `
+          <div class="history-grid">
+            ${userHistory.map(item => `
+              <div class="history-item">
+                <div class="history-image">
+                  <img src="${item.imageUrl}" alt="${item.prompt}" 
+                       onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjBmMmY1Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkltYWdlIG5vdCBhdmFpbGFibGU8L3RleHQ+PC9zdmc+'">
+                </div>
+                <div class="history-info">
+                  <div class="history-prompt" title="${item.prompt}">
+                    ${item.prompt.length > 80 ? item.prompt.substring(0, 80) + '...' : item.prompt}
+                  </div>
+                  <div class="history-date">
+                    <span>${new Date(item.timestamp).toLocaleDateString()}</span>
+                    <span>Image ${item.imageNumber}</span>
+                  </div>
+                  <div style="margin-top: 0.5rem;">
+                    <button class="btn-sm btn-success" onclick="downloadAdminImage('${item.imageUrl}', '${companyName}', ${item.imageNumber})" style="cursor:pointer;">
+                      Download
+                    </button>
+                    ${item.isFavorite ? '⭐' : ''}
+                  </div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      }
+      
+      historyModal.style.display = 'flex';
+    };
+
+    // NEW: Close history modal
+    window.closeHistoryModal = function() {
+      historyModal.style.display = 'none';
+    };
+
+    // NEW: Download image from admin panel
+    window.downloadAdminImage = function(url, companyName, imageNumber) {
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${(companyName || 'user').replace(/ /g, '_')}_${imageNumber}.jpg`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    };
+
+    // UPDATED: Save credits using email instead of id
+    window.saveCredits = function(userEmail) {
+      const users = JSON.parse(localStorage.getItem('users') || '[]');
+      const user = users.find(u => u.email === userEmail);
+      const input = document.querySelector(`.credit-input[data-email="${userEmail}"]`);
+      const credits = parseInt(input.value) || 0;
+      user.credits = credits;
+      localStorage.setItem('users', JSON.stringify(users));
+      alert(`Credits updated to ${credits} for ${userEmail}`);
+    };
+
+    // UPDATED: Edit user using email
+    window.editUser = function(userEmail) {
+      const users = JSON.parse(localStorage.getItem('users') || '[]');
+      const user = users.find(u => u.email === userEmail);
+      const newName = prompt('New company name:', user.company);
+      if (newName && newName.trim()) {
+        user.company = newName.trim();
+        localStorage.setItem('users', JSON.stringify(users));
+        renderUsers();
+      }
+    };
+
+    // UPDATED: Delete user using email
+    window.deleteUser = function(userEmail) {
+      if (confirm('Delete this user permanently?')) {
+        let users = JSON.parse(localStorage.getItem('users') || '[]');
+        users = users.filter(u => u.email !== userEmail);
+        localStorage.setItem('users', JSON.stringify(users));
+        localStorage.removeItem(`imageHistory_${userEmail}`);
+        renderUsers();
+      }
+    };
+
+    // Close modal when clicking outside
+    historyModal.addEventListener('click', function(e) {
+      if (e.target === historyModal) {
+        closeHistoryModal();
+      }
+    });
+  </script>
+</body>
+</html>
